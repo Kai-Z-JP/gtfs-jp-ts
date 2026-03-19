@@ -25,11 +25,12 @@ export function reduceImportProgressState(
         tableCards: nextCards,
       };
     }
-    case "table-update": {
+    case "parse":
+    case "write": {
       if (!event.fileName || !event.tableState) {
         return {
           ...current,
-          phase: "table-update",
+          phase: event.phase,
         };
       }
 
@@ -37,7 +38,7 @@ export function reduceImportProgressState(
       if (index === -1) {
         return {
           ...current,
-          phase: "table-update",
+          phase: event.phase,
           tableCards: [
             ...current.tableCards,
             {
@@ -55,7 +56,7 @@ export function reduceImportProgressState(
       };
       return {
         ...current,
-        phase: "table-update",
+        phase: event.phase,
         tableCards: nextCards,
       };
     }

@@ -1,6 +1,6 @@
 import {
-  createGtfsV4SqliteLoader,
-  type GtfsV4SqliteLoader,
+  createGtfsLoader,
+  type GtfsLoader,
   type SqliteStorageMode,
   type ImportProgressEvent,
   type ImportGtfsZipResult,
@@ -15,7 +15,7 @@ type GtfsLoaderAdapterOptions = {
 };
 
 export class GtfsLoaderAdapter implements GtfsLoaderPort {
-  private loader: GtfsV4SqliteLoader | undefined;
+  private loader: GtfsLoader | undefined;
 
   constructor(private readonly options: GtfsLoaderAdapterOptions) {}
 
@@ -24,10 +24,11 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
       return;
     }
 
-    this.loader = await createGtfsV4SqliteLoader({
+    this.loader = createGtfsLoader({
       storage: this.options.storage,
       filename: this.options.filename,
     });
+    await this.loader.open();
   }
 
   async close(): Promise<void> {
@@ -41,17 +42,17 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
 
   async clearDatabase(): Promise<void> {
     const loader = this.requireLoader();
-    await loader.clearDatabase();
+    await loader.reset();
   }
 
   async listAllTables(): Promise<string[]> {
     const loader = this.requireLoader();
-    return await loader.listAllTables();
+    return await loader.listTables();
   }
 
   async importGtfsZip(file: File, onProgress: (event: ImportProgressEvent) => void): Promise<ImportGtfsZipResult> {
     const loader = this.requireLoader();
-    return await loader.importGtfsZip(file, { onProgress });
+    return await loader.importZip(file, { onProgress });
   }
 
   async readRows(tableName: string, limit: number): Promise<GtfsRow[]> {
@@ -61,10 +62,10 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
       return await loader.readTable(tableName, { limit });
     }
 
-    return await loader.readUnknownTable(tableName, { limit });
+    return await loader.readRows(tableName, { limit });
   }
 
-  private requireLoader(): GtfsV4SqliteLoader {
+  private requireLoader(): GtfsLoader {
     if (!this.loader) {
       throw new Error("Loader is not open");
     }

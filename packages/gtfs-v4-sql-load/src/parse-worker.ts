@@ -1,103 +1,15 @@
 import Papa from "papaparse";
 
-type ParseWorkerRequest = {
-  type: "parse";
-  requestId: number;
-  fileName: string;
-  tableName: string;
-  bytes: ArrayBuffer;
-};
-
-type ParsedTable = {
-  fileName: string;
-  tableName: string;
-  headers: string[];
-  dataRows: string[][];
-};
-
-type ParseWorkerParsedResponse = {
-  type: "parsed";
-  requestId: number;
-  parsedTable: ParsedTable;
-};
-
-type ParseWorkerErrorResponse = {
-  type: "error";
-  requestId: number;
-  error: string;
-};
-
-type ParseWorkerResponse = ParseWorkerParsedResponse | ParseWorkerErrorResponse;
+import type {
+  ParseWorkerErrorResponse,
+  ParseWorkerRequest,
+  ParseWorkerResponse,
+} from "./internal/import/protocol.js";
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const textDecoder = new TextDecoder("utf-8");
 
 const runtime = self as DedicatedWorkerGlobalScope;
-
-runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
-  const request = event.data;
-  if (request.type !== "parse") {
-    return;
-  }
-
-  try {
-    const csv = textDecoder.decode(new Uint8Array(request.bytes));
-    const parsed = Papa.parse<string[]>(csv, {
-      header: false,
-      skipEmptyLines: "greedy",
-    });
-
-    if (parsed.errors.length > 0) {
-      const firstError = parsed.errors[0];
-      throw new Error(
-        `${request.fileName}: CSV parse error at row ${String(firstError.row)}: ${firstError.message}`,
-      );
-    }
-
-    const records = parsed.data;
-    if (records.length === 0) {
-      const response: ParseWorkerResponse = {
-        type: "parsed",
-        requestId: request.requestId,
-        parsedTable: {
-          fileName: request.fileName,
-          tableName: request.tableName,
-          headers: [],
-          dataRows: [],
-        },
-      };
-      runtime.postMessage(response);
-      return;
-    }
-
-    const headers = records[0].map((value, index) =>
-      normalizeHeaderName(value, request.fileName, index),
-    );
-    if (new Set(headers).size !== headers.length) {
-      throw new Error(`${request.fileName}: duplicate columns found`);
-    }
-
-    const response: ParseWorkerResponse = {
-      type: "parsed",
-      requestId: request.requestId,
-      parsedTable: {
-        fileName: request.fileName,
-        tableName: request.tableName,
-        headers,
-        dataRows: records.slice(1).filter(hasNonEmptyCell),
-      },
-    };
-
-    runtime.postMessage(response);
-  } catch (error) {
-    const response: ParseWorkerResponse = {
-      type: "error",
-      requestId: request.requestId,
-      error: toErrorMessage(error),
-    };
-    runtime.postMessage(response);
-  }
-};
 
 const normalizeHeaderName = (header: string, fileName: string, index: number): string => {
   const cleaned = header.replace(/^\uFEFF/, "").trim();
@@ -121,6 +33,117 @@ const toErrorMessage = (error: unknown): string => {
   }
 
   return String(error);
+};
+
+const postError = (requestId: number, error: unknown): void => {
+  const response: ParseWorkerErrorResponse = {
+    type: "error",
+    requestId,
+    error: toErrorMessage(error),
+  };
+  runtime.postMessage(response);
+};
+
+runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
+  const request = event.data;
+  if (request.type !== "parse") {
+    return;
+  }
+
+  try {
+    const csv = textDecoder.decode(new Uint8Array(request.bytes));
+    const chunkSize = Math.max(1, Math.floor(request.chunkSize));
+
+    let headers: string[] | undefined;
+    let chunk: string[][] = [];
+    let chunkIndex = 0;
+    let parsedRows = 0;
+
+    const parsed = Papa.parse<string[]>(csv, {
+      header: false,
+      skipEmptyLines: "greedy",
+      step: (result) => {
+        if (result.errors.length > 0) {
+          const firstError = result.errors[0];
+          throw new Error(
+            `${request.fileName}: CSV parse error at row ${String(firstError.row)}: ${firstError.message}`,
+          );
+        }
+
+        const row = result.data;
+        if (!headers) {
+          headers = row.map((value, index) => normalizeHeaderName(value, request.fileName, index));
+          if (new Set(headers).size !== headers.length) {
+            throw new Error(`${request.fileName}: duplicate columns found`);
+          }
+
+          const startResponse: ParseWorkerResponse = {
+            type: "start",
+            requestId: request.requestId,
+            headers,
+          };
+          runtime.postMessage(startResponse);
+          return;
+        }
+
+        if (!hasNonEmptyCell(row)) {
+          return;
+        }
+
+        parsedRows += 1;
+        chunk.push(row);
+
+        if (chunk.length < chunkSize) {
+          return;
+        }
+
+        const response: ParseWorkerResponse = {
+          type: "chunk",
+          requestId: request.requestId,
+          chunkIndex,
+          rows: chunk,
+        };
+        runtime.postMessage(response);
+        chunk = [];
+        chunkIndex += 1;
+      },
+    });
+
+    if (parsed.errors.length > 0) {
+      const firstError = parsed.errors[0];
+      throw new Error(
+        `${request.fileName}: CSV parse error at row ${String(firstError.row)}: ${firstError.message}`,
+      );
+    }
+
+    if (!headers) {
+      const startResponse: ParseWorkerResponse = {
+        type: "start",
+        requestId: request.requestId,
+        headers: [],
+      };
+      runtime.postMessage(startResponse);
+    }
+
+    if (chunk.length > 0) {
+      const response: ParseWorkerResponse = {
+        type: "chunk",
+        requestId: request.requestId,
+        chunkIndex,
+        rows: chunk,
+      };
+      runtime.postMessage(response);
+    }
+
+    const doneResponse: ParseWorkerResponse = {
+      type: "done",
+      requestId: request.requestId,
+      parsedRows,
+    };
+    runtime.postMessage(doneResponse);
+  } catch (error) {
+    postError(request.requestId, error);
+  }
 };
 
 export {};
