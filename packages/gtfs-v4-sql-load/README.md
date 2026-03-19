@@ -22,6 +22,8 @@ const importResult = await loader.importGtfsZip(file, {
 });
 console.log(importResult);
 
+await loader.clearDatabase();
+
 await loader.close();
 ```
 
@@ -29,6 +31,7 @@ await loader.close();
 
 - `storage: "memory"` は `:memory:` DB を使います。
 - `storage: "opfs"` は `file:...?...vfs=opfs` を使います。
+- `clearDatabase` は DB 自体を削除して再作成します（`memory` は再初期化、`opfs` は `unlink` でファイル削除後に再作成）。
 - `readTable` / `readUnknownTable` は `limit` 未指定時、件数制限なしで読み込みます。
 - `importGtfsZip` は ZIP 解析・テーブル作成・データ投入を行います。
 - `storage: "opfs"` の `importGtfsZip` は既定で `opfsImportMode: "memory-stage"` を使い、`:memory:` DB に投入後、SQLiteファイル全体を OPFS に反映します（既存DBは全体置換）。

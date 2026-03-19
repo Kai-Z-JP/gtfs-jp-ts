@@ -311,6 +311,13 @@ export class GtfsV4SqliteLoader {
     this.#dbId = undefined;
   }
 
+  async clearDatabase(): Promise<void> {
+    this.#ensureOpen();
+
+    await this.close({ unlink: this.#mode === "opfs" });
+    await this.open();
+  }
+
   async listAllTables(): Promise<string[]> {
     const rows = await this.#execRows<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",

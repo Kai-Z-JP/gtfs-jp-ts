@@ -151,6 +151,32 @@ export default function App(): JSX.Element {
     }
   }, [refreshTables, setStatusMessage]);
 
+  const handleClearDatabase = useCallback(async () => {
+    if (!loaderRef.current) {
+      return;
+    }
+
+    const confirmed = globalThis.confirm("現在のDBを削除して再作成します。この操作は元に戻せません。続行しますか？");
+    if (!confirmed) {
+      setStatusMessage("DBクリアをキャンセルしました", "warn");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await loaderRef.current.clearDatabase();
+      await refreshTables();
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      setStatusMessage("DBを削除して再作成しました", "ok");
+    } catch (error) {
+      handleError(error, "DBクリアに失敗しました", setStatusMessage);
+    } finally {
+      setBusy(false);
+    }
+  }, [refreshTables, setStatusMessage]);
+
   const handleReadRows = useCallback(async () => {
     if (!loaderRef.current) {
       return;
@@ -241,6 +267,9 @@ export default function App(): JSX.Element {
                 </Button>
                 <Button variant="outline" disabled={busy || !isOpen} onClick={() => void refreshTables()}>
                   List Tables
+                </Button>
+                <Button variant="outline" disabled={busy || !isOpen} onClick={() => void handleClearDatabase()}>
+                  Clear DB
                 </Button>
                 <Button variant="ghost" className="col-span-2" disabled={busy || !isOpen} onClick={() => void handleClose()}>
                   <X className="h-4 w-4" />
