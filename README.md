@@ -13,6 +13,9 @@ pnpm install
 pnpm build
 ```
 
+初回 clone 直後に sample を最短で起動したい場合は  
+[`SAMPLE_QUICKSTART.md`](./SAMPLE_QUICKSTART.md) を参照してください。
+
 ## Packages
 
 - `packages/gtfs-v4-struct`
