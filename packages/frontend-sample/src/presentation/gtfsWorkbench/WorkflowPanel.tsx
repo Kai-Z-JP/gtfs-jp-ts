@@ -13,6 +13,7 @@ import { TableProgressCardView } from "./TableProgressCardView";
 
 type WorkflowPanelProps = {
   storage: SqliteStorageMode;
+  derivedTablesEnabled: boolean;
   opfsSupport: OpfsSupport;
   statusMessage: string;
   busy: boolean;
@@ -20,6 +21,7 @@ type WorkflowPanelProps = {
   fileInputResetToken: number;
   importProgress: ImportProgressState;
   onStorageChange: (storage: SqliteStorageMode) => void;
+  onDerivedTablesEnabledChange: (enabled: boolean) => void;
   onOpen: () => Promise<void>;
   onImportZip: (file: File | undefined) => Promise<void>;
   onRefreshTables: () => Promise<void>;
@@ -29,6 +31,7 @@ type WorkflowPanelProps = {
 
 export function WorkflowPanel({
   storage,
+  derivedTablesEnabled,
   opfsSupport,
   statusMessage,
   busy,
@@ -36,6 +39,7 @@ export function WorkflowPanel({
   fileInputResetToken,
   importProgress,
   onStorageChange,
+  onDerivedTablesEnabledChange,
   onOpen,
   onImportZip,
   onRefreshTables,
@@ -105,6 +109,24 @@ export function WorkflowPanel({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="derived-tables">Derived tables</Label>
+            <label
+              htmlFor="derived-tables"
+              className="flex h-10 items-center justify-between rounded-md border border-black bg-white px-3 text-sm text-black"
+            >
+              <span>universal_calendar</span>
+              <input
+                id="derived-tables"
+                type="checkbox"
+                className="h-4 w-4 accent-black"
+                checked={derivedTablesEnabled}
+                onChange={(event) => onDerivedTablesEnabledChange(event.target.checked)}
+                disabled={busy}
+              />
+            </label>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <Button disabled={busy || isOpen} onClick={() => void onOpen()}>
               Open DB
@@ -159,7 +181,7 @@ export function WorkflowPanel({
             ) : (
               <div className="grid gap-2 overflow-auto pr-1 sm:grid-cols-2">
                 {importProgress.tableCards.map((card) => (
-                  <TableProgressCardView key={card.fileName} card={card} />
+                  <TableProgressCardView key={card.name} card={card} />
                 ))}
               </div>
             )}

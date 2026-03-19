@@ -1,12 +1,22 @@
-import type { GtfsRow, GtfsJpV4TableName, GtfsJpV4TableRow } from "@gtfs-jp/types";
+import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from "@gtfs-jp/types";
+
+import type {
+  GtfsSchemaDefinition,
+  GtfsSchemaRuntime,
+  GtfsSchemaTableName,
+  GtfsSchemaTableRow,
+} from "./schema-types.js";
+import type { SqlBindMap, SqlBindValue } from "./sql-types.js";
 
 export type SqliteStorageMode = "memory" | "opfs";
 
-export interface GtfsLoaderOptions {
+export interface GtfsLoaderOptions<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> {
   storage?: SqliteStorageMode;
   filename?: string;
   worker?: Worker;
   strictGtfsTableName?: boolean;
+  schema?: TSchema;
+  runtime?: GtfsSchemaRuntime<TSchema>;
 }
 
 export interface CloseOptions {
@@ -24,39 +34,24 @@ export interface LoadGtfsTablesOptions extends TableReadOptions {
   skipMissing?: boolean;
 }
 
-export type ImportProgressPhase =
-  | "prepare"
-  | "parse"
-  | "write"
-  | "opfs-stage"
-  | "done"
-  | "error";
+export type ImportProgressPhase = "prepare" | "import" | "derive" | "done" | "error";
 
-export type ImportTableState =
-  | "queued"
-  | "parsing"
-  | "parsed"
-  | "writing"
-  | "done"
-  | "skipped"
-  | "error";
+export type ImportTargetState = "queued" | "running" | "done" | "skipped" | "error";
+export type ImportTargetKind = "source" | "derived";
 
 export interface ImportProgressTarget {
-  fileName: string;
-  tableName: string;
+  targetKind: ImportTargetKind;
+  targetName: string;
 }
 
 export interface ImportProgressEvent {
   phase: ImportProgressPhase;
   message: string;
+  targetKind?: ImportTargetKind;
+  targetName?: string;
+  state?: ImportTargetState;
+  rowsWritten?: number;
   targets?: ImportProgressTarget[];
-  fileName?: string;
-  tableName?: string;
-  tableState?: ImportTableState;
-  parsedRows?: number;
-  writtenRows?: number;
-  chunkIndex?: number;
-  chunkRows?: number;
 }
 
 export interface ImportGtfsZipOptions {
@@ -71,13 +66,13 @@ export interface ImportGtfsZipOptions {
 export interface ImportGtfsZipResult {
   tablesImported: number;
   rowsImported: number;
+  derivedTablesMaterialized: number;
+  derivedRowsWritten: number;
   skippedFiles: string[];
+  skippedDerivedTables: string[];
 }
 
-export type SqlBindValue = string | number | Uint8Array | null;
-export type SqlBindMap = Record<string, SqlBindValue>;
-
-export interface GtfsLoader {
+export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> {
   readonly mode: SqliteStorageMode;
   open(): Promise<void>;
   close(options?: CloseOptions): Promise<void>;
@@ -85,6 +80,10 @@ export interface GtfsLoader {
   listTables(): Promise<string[]>;
   listGtfsTables(): Promise<GtfsJpV4TableName[]>;
   hasTable(tableName: string): Promise<boolean>;
+  read<TName extends GtfsSchemaTableName<TSchema>>(
+    tableName: TName,
+    options?: TableReadOptions,
+  ): Promise<Array<GtfsSchemaTableRow<TSchema, TName>>>;
   readTable<TName extends GtfsJpV4TableName>(
     tableName: TName,
     options?: TableReadOptions,
@@ -95,7 +94,10 @@ export interface GtfsLoader {
     file: File | Blob | ArrayBuffer | Uint8Array,
     options?: ImportGtfsZipOptions,
   ): Promise<ImportGtfsZipResult>;
+  query<TRow extends GtfsRow = GtfsRow>(sql: string, bind?: SqlBindMap): Promise<TRow[]>;
   exec(sql: string, bind?: SqlBindMap): Promise<void>;
 }
 
 export type ImportProgressEmitter = (event: ImportProgressEvent) => void;
+
+export type { SqlBindMap, SqlBindValue };

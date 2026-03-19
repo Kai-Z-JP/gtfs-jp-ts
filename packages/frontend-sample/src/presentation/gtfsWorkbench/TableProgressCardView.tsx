@@ -6,13 +6,13 @@ type TableProgressCardViewProps = {
 };
 
 export function TableProgressCardView({ card }: TableProgressCardViewProps): JSX.Element {
-  const active = card.state === "parsing" || card.state === "writing";
+  const active = card.state === "running";
 
   return (
     <div className={cn("rounded-md border border-black bg-white px-2 py-2", active && "animate-pulse")}>
       <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-xs font-semibold tracking-wide text-black" title={card.fileName}>
-          {card.fileName}
+        <p className="truncate text-xs font-semibold tracking-wide text-black" title={card.name}>
+          {card.name}
         </p>
         <span
           className={cn(

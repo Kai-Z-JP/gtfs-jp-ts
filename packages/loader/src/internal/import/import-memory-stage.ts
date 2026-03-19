@@ -3,6 +3,7 @@ import type {
   ImportGtfsZipResult,
   ImportProgressEmitter,
 } from "../../types.js";
+import type { DerivedMaterializationResult } from "../materialization.js";
 import { SqliteSession } from "../session.js";
 import { resolveFilename, toOpfsPath, writeBytesToOpfsFile } from "../storage.js";
 import { importZipIntoSession } from "./import-pipeline.js";
@@ -13,6 +14,23 @@ type ImportViaMemoryStageArgs = {
   file: File | Blob | ArrayBuffer | Uint8Array;
   options: ImportGtfsZipOptions;
   emit: ImportProgressEmitter;
+  derivedTargetNames?: readonly string[];
+  afterImport?: (context: {
+    session: SqliteSession;
+    emit: ImportProgressEmitter;
+    metrics: {
+      tablesImported: number;
+      rowsImported: number;
+      sourceTables: readonly {
+        targetKind: "source" | "derived";
+        tableName: string;
+        state: "queued" | "running" | "done" | "skipped" | "error";
+        rowsWritten: number;
+        error?: string;
+        skipReason?: string;
+      }[];
+    };
+  }) => Promise<DerivedMaterializationResult>;
 };
 
 export const importZipViaMemoryStage = async ({
@@ -21,12 +39,14 @@ export const importZipViaMemoryStage = async ({
   file,
   options,
   emit,
+  derivedTargetNames,
+  afterImport,
 }: ImportViaMemoryStageArgs): Promise<ImportGtfsZipResult> => {
   const opfsFilename = resolveFilename(session.mode, session.filename);
   const opfsPath = toOpfsPath(opfsFilename);
 
   emit({
-    phase: "opfs-stage",
+    phase: "import",
     message: "OPFS memory-stage: close current DB",
   });
   await session.close();
@@ -41,7 +61,7 @@ export const importZipViaMemoryStage = async ({
 
   try {
     emit({
-      phase: "opfs-stage",
+      phase: "import",
       message: "OPFS memory-stage: open :memory: DB",
     });
 
@@ -53,16 +73,18 @@ export const importZipViaMemoryStage = async ({
       file,
       options,
       emit,
+      derivedTargetNames,
+      afterImport,
     });
 
     emit({
-      phase: "opfs-stage",
+      phase: "import",
       message: "OPFS memory-stage: export sqlite bytes",
     });
     const bytes = await stagingSession.exportBytes();
 
     emit({
-      phase: "opfs-stage",
+      phase: "import",
       message: `OPFS memory-stage: write sqlite file (${opfsPath})`,
     });
     await writeBytesToOpfsFile(opfsPath, bytes);
@@ -77,7 +99,7 @@ export const importZipViaMemoryStage = async ({
 
     try {
       emit({
-        phase: "opfs-stage",
+        phase: "import",
         message: "OPFS memory-stage: reopen OPFS DB",
       });
       await session.open();

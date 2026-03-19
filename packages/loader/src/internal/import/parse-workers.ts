@@ -3,7 +3,7 @@ import { AsyncQueue } from "../async-queue.js";
 import { ParseWorkerClient } from "./parse-worker-client.js";
 import type { QueuedChunk } from "./chunk.js";
 import type { ImportTarget } from "./import-targets.js";
-import { emitTableEvent } from "./progress.js";
+import { emitSourceEvent } from "./progress.js";
 
 type StartParseWorkersArgs = {
   parseWorkerConcurrency: number;
@@ -49,14 +49,7 @@ export const startParseWorkers = ({
           const target = targets[index];
           const writerQueue = writerQueues[target.index % writerCount];
 
-          emitTableEvent(
-            emit,
-            "parse",
-            target.fileName,
-            target.tableName,
-            "parsing",
-            `ZIP parse started: ${target.fileName}`,
-          );
+          emitSourceEvent(emit, target.tableName, "running", `Import started: ${target.fileName}`);
 
           let chunkIndex = 0;
           try {
@@ -101,15 +94,7 @@ export const startParseWorkers = ({
                     chunkIndex,
                   });
 
-                  emitTableEvent(
-                    emit,
-                    "parse",
-                    target.fileName,
-                    target.tableName,
-                    "parsed",
-                    `ZIP parse done: ${target.fileName}`,
-                    { parsedRows },
-                  );
+                  emitSourceEvent(emit, target.tableName, "running", `Import parsed: ${target.fileName}`, parsedRows);
                 },
               },
             );

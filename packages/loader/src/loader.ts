@@ -1,11 +1,17 @@
 import {
   GTFS_JP_V4_TABLE_NAMES,
   isGtfsJpV4TableName,
-  type GtfsRow,
   type GtfsJpV4TableName,
   type GtfsJpV4TableRow,
+  type GtfsRow,
 } from "@gtfs-jp/types";
 
+import type {
+  GtfsSchemaDefinition,
+  GtfsSchemaRuntime,
+  GtfsSchemaTableName,
+  GtfsSchemaTableRow,
+} from "./schema-types.js";
 import type {
   GtfsLoader,
   GtfsLoaderOptions,
@@ -18,16 +24,19 @@ import type {
 } from "./types.js";
 import { importZipViaMemoryStage } from "./internal/import/import-memory-stage.js";
 import { importZipIntoSession } from "./internal/import/import-pipeline.js";
+import { compileGtfsSchema, isInternalMaterializationTable, runDerivedMaterialization } from "./internal/materialization.js";
 import { assertIdentifier, buildLimitOffsetClause, buildOrderByClause, quoteIdentifier } from "./internal/sql.js";
 import { SqliteSession } from "./internal/session.js";
 import { getOpfsUnavailableReason } from "./internal/storage.js";
 
-class GtfsLoaderImpl implements GtfsLoader {
+class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> implements GtfsLoader<TSchema> {
   #mode: SqliteStorageMode;
   #strictGtfsTableName: boolean;
   #session: SqliteSession;
+  #compiledSchema = compileGtfsSchema(undefined);
+  #runtime: GtfsSchemaRuntime<TSchema>;
 
-  constructor(options: GtfsLoaderOptions = {}) {
+  constructor(options: GtfsLoaderOptions<TSchema> = {}) {
     this.#mode = options.storage ?? "memory";
     this.#strictGtfsTableName = options.strictGtfsTableName ?? true;
     this.#session = new SqliteSession({
@@ -35,6 +44,8 @@ class GtfsLoaderImpl implements GtfsLoader {
       filename: options.filename,
       worker: options.worker,
     });
+    this.#compiledSchema = compileGtfsSchema(options.schema);
+    this.#runtime = (options.runtime ?? {}) as GtfsSchemaRuntime<TSchema>;
   }
 
   get mode(): SqliteStorageMode {
@@ -66,7 +77,9 @@ class GtfsLoaderImpl implements GtfsLoader {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     );
 
-    return rows.map((row) => row.name);
+    return rows
+      .map((row) => row.name)
+      .filter((tableName) => !isInternalMaterializationTable(tableName));
   }
 
   async listGtfsTables(): Promise<GtfsJpV4TableName[]> {
@@ -83,6 +96,13 @@ class GtfsLoaderImpl implements GtfsLoader {
     return rows.length > 0;
   }
 
+  async read<TName extends GtfsSchemaTableName<TSchema>>(
+    tableName: TName,
+    options: TableReadOptions = {},
+  ): Promise<Array<GtfsSchemaTableRow<TSchema, TName>>> {
+    return (await this.readRows(tableName, options)) as Array<GtfsSchemaTableRow<TSchema, TName>>;
+  }
+
   async readTable<TName extends GtfsJpV4TableName>(
     tableName: TName,
     options: TableReadOptions = {},
@@ -91,11 +111,7 @@ class GtfsLoaderImpl implements GtfsLoader {
       throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
     }
 
-    const orderByClause = buildOrderByClause(options.orderBy);
-    const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
-
-    const sql = `SELECT * FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
-    return await this.#session.execRows<GtfsJpV4TableRow<TName>>(sql, bind);
+    return (await this.readRows(tableName, options)) as Array<GtfsJpV4TableRow<TName>>;
   }
 
   async readRows(tableName: string, options: TableReadOptions = {}): Promise<GtfsRow[]> {
@@ -137,6 +153,37 @@ class GtfsLoaderImpl implements GtfsLoader {
       options.onProgress?.(event);
     };
 
+    const afterImport =
+      this.#compiledSchema.derivedTables.length === 0
+        ? undefined
+        : async ({
+            session,
+            emit: derivedEmit,
+            metrics,
+          }: {
+            session: SqliteSession;
+            emit: typeof emit;
+            metrics: {
+              tablesImported: number;
+              rowsImported: number;
+              sourceTables: readonly {
+                targetKind: "source" | "derived";
+                tableName: string;
+                state: "queued" | "running" | "done" | "skipped" | "error";
+                rowsWritten: number;
+                error?: string;
+                skipReason?: string;
+              }[];
+            };
+          }) =>
+            await runDerivedMaterialization({
+              session,
+              compiledSchema: this.#compiledSchema,
+              runtime: this.#runtime as Record<string, unknown>,
+              emit: derivedEmit,
+              sourceMetrics: metrics.sourceTables,
+            });
+
     try {
       const result =
         this.#mode === "opfs" && (options.opfsImportMode ?? "memory-stage") === "memory-stage"
@@ -146,6 +193,8 @@ class GtfsLoaderImpl implements GtfsLoader {
               file,
               options,
               emit,
+              derivedTargetNames: this.#compiledSchema.derivedTableNames,
+              afterImport,
             })
           : await importZipIntoSession({
               session: this.#session,
@@ -154,11 +203,13 @@ class GtfsLoaderImpl implements GtfsLoader {
               file,
               options,
               emit,
+              derivedTargetNames: this.#compiledSchema.derivedTableNames,
+              afterImport,
             });
 
       emit({
         phase: "done",
-        message: `ZIP import done: ${result.tablesImported} tables, ${result.rowsImported} rows`,
+        message: `ZIP import done: ${result.tablesImported} source tables, ${result.derivedTablesMaterialized} derived tables`,
       });
       return result;
     } catch (error) {
@@ -171,11 +222,17 @@ class GtfsLoaderImpl implements GtfsLoader {
     }
   }
 
+  async query<TRow extends GtfsRow = GtfsRow>(sql: string, bind: SqlBindMap = {}): Promise<TRow[]> {
+    return await this.#session.execRows<TRow>(sql, bind);
+  }
+
   async exec(sql: string, bind: SqlBindMap = {}): Promise<void> {
     await this.#session.exec(sql, bind);
   }
 }
 
-export const createGtfsLoader = (options: GtfsLoaderOptions = {}): GtfsLoader => {
+export const createGtfsLoader = <TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition>(
+  options: GtfsLoaderOptions<TSchema> = {},
+): GtfsLoader<TSchema> => {
   return new GtfsLoaderImpl(options);
 };

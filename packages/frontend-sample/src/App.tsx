@@ -33,6 +33,7 @@ export default function App(): JSX.Element {
         {mainTab === "workflow" ? (
           <WorkflowPanel
             storage={state.storage}
+            derivedTablesEnabled={state.derivedTablesEnabled}
             opfsSupport={state.opfsSupport}
             statusMessage={state.status.message}
             busy={state.busy}
@@ -40,6 +41,7 @@ export default function App(): JSX.Element {
             fileInputResetToken={state.fileInputResetToken}
             importProgress={state.importProgress}
             onStorageChange={actions.setStorage}
+            onDerivedTablesEnabledChange={actions.setDerivedTablesEnabled}
             onOpen={actions.openDb}
             onImportZip={actions.importZip}
             onRefreshTables={actions.refreshTables}

@@ -1,14 +1,10 @@
-import type { ImportTableState } from "@gtfs-jp/loader";
+import type { ImportTargetState } from "@gtfs-jp/loader";
 
-export function stateBadgeClassName(state: ImportTableState): string {
+export function stateBadgeClassName(state: ImportTargetState): string {
   switch (state) {
     case "queued":
       return "border-neutral-500 text-neutral-600";
-    case "parsing":
-      return "border-blue-600 text-blue-700";
-    case "parsed":
-      return "border-cyan-600 text-cyan-700";
-    case "writing":
+    case "running":
       return "border-amber-600 text-amber-700";
     case "done":
       return "border-green-700 text-green-800";

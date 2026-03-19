@@ -16,7 +16,7 @@ export function reduceImportProgressState(
   switch (event.phase) {
     case "prepare": {
       const nextCards = (event.targets ?? []).map((target) => ({
-        fileName: target.fileName,
+        name: target.targetName,
         state: "queued" as const,
       }));
       return {
@@ -25,16 +25,16 @@ export function reduceImportProgressState(
         tableCards: nextCards,
       };
     }
-    case "parse":
-    case "write": {
-      if (!event.fileName || !event.tableState) {
+    case "import":
+    case "derive": {
+      if (!event.targetName || !event.state) {
         return {
           ...current,
           phase: event.phase,
         };
       }
 
-      const index = current.tableCards.findIndex((card) => card.fileName === event.fileName);
+      const index = current.tableCards.findIndex((card) => card.name === event.targetName);
       if (index === -1) {
         return {
           ...current,
@@ -42,8 +42,8 @@ export function reduceImportProgressState(
           tableCards: [
             ...current.tableCards,
             {
-              fileName: event.fileName,
-              state: event.tableState,
+              name: event.targetName,
+              state: event.state,
             },
           ],
         };
@@ -52,7 +52,7 @@ export function reduceImportProgressState(
       const nextCards = [...current.tableCards];
       nextCards[index] = {
         ...nextCards[index],
-        state: event.tableState,
+        state: event.state,
       };
       return {
         ...current,
@@ -60,11 +60,6 @@ export function reduceImportProgressState(
         tableCards: nextCards,
       };
     }
-    case "opfs-stage":
-      return {
-        ...current,
-        phase: "opfs-stage",
-      };
     case "done":
       return {
         ...current,

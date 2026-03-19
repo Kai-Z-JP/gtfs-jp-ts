@@ -11,9 +11,10 @@ import { withOpfsImportWriteTuning } from "../opfs-pragmas.js";
 import { SqliteSession } from "../session.js";
 import type { ImportMetrics, QueuedChunk } from "./chunk.js";
 import { collectImportTargets } from "./import-targets.js";
-import { emitTableEvent } from "./progress.js";
 import { startParseWorkers } from "./parse-workers.js";
+import { emitSourceEvent } from "./progress.js";
 import { startWriteWorkers } from "./write-workers.js";
+import type { DerivedMaterializationResult } from "../materialization.js";
 
 type ImportIntoSessionArgs = {
   session: SqliteSession;
@@ -22,6 +23,12 @@ type ImportIntoSessionArgs = {
   file: File | Blob | ArrayBuffer | Uint8Array;
   options: ImportGtfsZipOptions;
   emit: ImportProgressEmitter;
+  derivedTargetNames?: readonly string[];
+  afterImport?: (context: {
+    session: SqliteSession;
+    emit: ImportProgressEmitter;
+    metrics: ImportMetrics;
+  }) => Promise<DerivedMaterializationResult>;
 };
 
 const toArrayBuffer = async (value: File | Blob | ArrayBuffer | Uint8Array): Promise<ArrayBuffer> => {
@@ -54,6 +61,8 @@ export const importZipIntoSession = async ({
   file,
   options,
   emit,
+  derivedTargetNames = [],
+  afterImport,
 }: ImportIntoSessionArgs): Promise<ImportGtfsZipResult> => {
   const archive = await JSZip.loadAsync(await toArrayBuffer(file));
   const { targets, skippedFiles } = collectImportTargets({
@@ -64,10 +73,16 @@ export const importZipIntoSession = async ({
   emit({
     phase: "prepare",
     message: `Import targets prepared: ${targets.length} files`,
-    targets: targets.map((target) => ({
-      fileName: target.fileName,
-      tableName: target.tableName,
-    })),
+    targets: [
+      ...targets.map((target) => ({
+        targetKind: "source" as const,
+        targetName: target.tableName,
+      })),
+      ...derivedTargetNames.map((targetName) => ({
+        targetKind: "derived" as const,
+        targetName,
+      })),
+    ],
   });
 
   const parseWorkerConcurrency = normalizeConcurrency(options.parseWorkerConcurrency, 8);
@@ -93,6 +108,7 @@ export const importZipIntoSession = async ({
   const metrics: ImportMetrics = {
     tablesImported: 0,
     rowsImported: 0,
+    sourceTables: [],
   };
 
   let hasError = false;
@@ -112,18 +128,11 @@ export const importZipIntoSession = async ({
 
     if (context?.fileName && context.tableName) {
       const message = error instanceof Error ? error.message : String(error);
-      emitTableEvent(
-        emit,
-        "parse",
-        context.fileName,
-        context.tableName,
-        "error",
-        `${context.fileName}: ${message}`,
-      );
+      emitSourceEvent(emit, context.tableName, "error", `${context.fileName}: ${message}`);
     }
   };
 
-  const runInTransaction = async (): Promise<void> => {
+  const runInTransaction = async (): Promise<DerivedMaterializationResult> => {
     await session.exec(mode === "opfs" ? "BEGIN IMMEDIATE;" : "BEGIN;");
 
     try {
@@ -162,22 +171,41 @@ export const importZipIntoSession = async ({
         throw firstError ?? new Error("Import failed");
       }
 
+      const derivedResult = afterImport
+        ? await afterImport({
+            session,
+            emit,
+            metrics,
+          })
+        : {
+            derivedTablesMaterialized: 0,
+            derivedRowsWritten: 0,
+            skippedDerivedTables: [],
+            tableMetrics: [],
+          };
+
       await session.exec("COMMIT;");
+
+      return derivedResult;
     } catch (error) {
       await session.exec("ROLLBACK;");
       throw error;
     }
   };
 
+  let derivedResult: DerivedMaterializationResult;
   if (mode === "opfs") {
-    await withOpfsImportWriteTuning(session, runInTransaction);
+    derivedResult = await withOpfsImportWriteTuning(session, runInTransaction);
   } else {
-    await runInTransaction();
+    derivedResult = await runInTransaction();
   }
 
   return {
     tablesImported: metrics.tablesImported,
     rowsImported: metrics.rowsImported,
+    derivedTablesMaterialized: derivedResult.derivedTablesMaterialized,
+    derivedRowsWritten: derivedResult.derivedRowsWritten,
     skippedFiles,
+    skippedDerivedTables: derivedResult.skippedDerivedTables,
   };
 };

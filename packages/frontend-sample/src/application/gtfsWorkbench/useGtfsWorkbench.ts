@@ -16,6 +16,7 @@ import { detectOpfsSupport, GtfsLoaderAdapter, type GtfsLoaderPort } from "../..
 
 export type WorkbenchState = {
   storage: SqliteStorageMode;
+  derivedTablesEnabled: boolean;
   status: StatusMessage;
   summary: string;
   tableNames: string[];
@@ -31,6 +32,7 @@ export type WorkbenchState = {
 
 export type WorkbenchAction =
   | { type: "set-storage"; storage: SqliteStorageMode }
+  | { type: "set-derived-tables-enabled"; enabled: boolean }
   | { type: "set-selected-table"; selectedTable: string }
   | { type: "set-limit"; limit: string }
   | { type: "set-busy"; busy: boolean }
@@ -46,6 +48,7 @@ export type WorkbenchAction =
 
 export type WorkbenchActions = {
   setStorage: (storage: SqliteStorageMode) => void;
+  setDerivedTablesEnabled: (enabled: boolean) => void;
   setSelectedTable: (selectedTable: string) => void;
   setLimit: (limit: string) => void;
   openDb: () => Promise<void>;
@@ -58,6 +61,7 @@ export type WorkbenchActions = {
 
 const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState => ({
   storage: "memory",
+  derivedTablesEnabled: true,
   status: {
     type: "warn",
     message: "DB未接続",
@@ -80,6 +84,11 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
       return {
         ...state,
         storage: action.storage === "opfs" && !state.opfsSupport.available ? "memory" : action.storage,
+      };
+    case "set-derived-tables-enabled":
+      return {
+        ...state,
+        derivedTablesEnabled: action.enabled,
       };
     case "set-selected-table":
       return {
@@ -188,6 +197,11 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
     dispatch({ type: "set-status", status: { message, type } });
   }, []);
 
+  const setDerivedTablesEnabled = useCallback((enabled: boolean) => {
+    dispatch({ type: "set-derived-tables-enabled", enabled });
+    loaderRef.current?.setDerivedTablesEnabled(enabled);
+  }, []);
+
   const closeCurrentLoader = useCallback(async () => {
     if (!loaderRef.current) {
       return;
@@ -233,6 +247,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
         storage: state.storage,
         filename: "gtfs-jp-v4-sample.sqlite3",
       });
+      nextLoader.setDerivedTablesEnabled(state.derivedTablesEnabled);
       await nextLoader.open();
       loaderRef.current = nextLoader;
 
@@ -243,7 +258,14 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
     } finally {
       dispatch({ type: "set-busy", busy: false });
     }
-  }, [closeCurrentLoader, setStatusMessage, state.opfsSupport.available, state.opfsSupport.reason, state.storage]);
+  }, [
+    closeCurrentLoader,
+    setStatusMessage,
+    state.derivedTablesEnabled,
+    state.opfsSupport.available,
+    state.opfsSupport.reason,
+    state.storage,
+  ]);
 
   const closeDb = useCallback(async () => {
     dispatch({ type: "set-busy", busy: true });
@@ -288,11 +310,18 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
         await refreshTables();
 
         const skipped = result.skippedFiles.length > 0 ? ` / skipped: ${result.skippedFiles.join(", ")}` : "";
+        const skippedDerived =
+          result.skippedDerivedTables.length > 0
+            ? ` / skipped derived: ${result.skippedDerivedTables.join(", ")}`
+            : "";
         dispatch({
           type: "set-summary",
-          summary: `ZIP import done: ${result.tablesImported} tables, ${result.rowsImported} rows, ${elapsedLabel}${skipped}`,
+          summary: `ZIP import done: ${result.tablesImported} source tables, ${result.rowsImported} source rows, ${result.derivedTablesMaterialized} derived tables, ${result.derivedRowsWritten} derived rows, ${elapsedLabel}${skipped}${skippedDerived}`,
         });
-        setStatusMessage(`ZIP取込完了: ${result.tablesImported} tables (${elapsedLabel})`, "ok");
+        setStatusMessage(
+          `ZIP取込完了: ${result.tablesImported} source / ${result.derivedTablesMaterialized} derived (${elapsedLabel})`,
+          "ok",
+        );
       } catch (error) {
         handleError(error, "ZIP取込に失敗しました", setStatusMessage);
       } finally {
@@ -359,6 +388,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
   const actions = useMemo<WorkbenchActions>(
     () => ({
       setStorage: (storage) => dispatch({ type: "set-storage", storage }),
+      setDerivedTablesEnabled,
       setSelectedTable: (selectedTable) => dispatch({ type: "set-selected-table", selectedTable }),
       setLimit: (limit) => dispatch({ type: "set-limit", limit }),
       openDb,
@@ -368,7 +398,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
       clearDb,
       readRows,
     }),
-    [clearDb, closeDb, importZip, openDb, readRows, refreshTables],
+    [clearDb, closeDb, importZip, openDb, readRows, refreshTables, setDerivedTablesEnabled],
   );
 
   return {

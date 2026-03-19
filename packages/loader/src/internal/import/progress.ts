@@ -1,20 +1,18 @@
-import type { ImportProgressEmitter, ImportTableState } from "../../types.js";
+import type { ImportProgressEmitter, ImportTargetState } from "../../types.js";
 
-export const emitTableEvent = (
+export const emitSourceEvent = (
   emit: ImportProgressEmitter,
-  phase: "parse" | "write",
-  fileName: string,
   tableName: string,
-  tableState: ImportTableState,
+  state: ImportTargetState,
   message: string,
-  extra: Partial<{ parsedRows: number; writtenRows: number; chunkIndex: number; chunkRows: number }> = {},
+  rowsWritten?: number,
 ): void => {
   emit({
-    phase,
-    fileName,
-    tableName,
-    tableState,
+    phase: "import",
+    targetKind: "source",
+    targetName: tableName,
+    state,
     message,
-    ...extra,
+    rowsWritten,
   });
 };

@@ -1,4 +1,4 @@
-import type { ImportProgressPhase, ImportTableState } from "@gtfs-jp/loader";
+import type { ImportProgressPhase, ImportTargetState } from "@gtfs-jp/loader";
 
 export type StatusType = "ok" | "warn" | "error";
 
@@ -15,8 +15,8 @@ export type OpfsSupport = {
 export type ImportProgressViewPhase = "idle" | ImportProgressPhase;
 
 export type TableProgressCard = {
-  fileName: string;
-  state: ImportTableState;
+  name: string;
+  state: ImportTargetState;
 };
 
 export type ImportProgressState = {

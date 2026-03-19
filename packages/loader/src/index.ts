@@ -1,4 +1,5 @@
 export { createGtfsLoader } from "./loader.js";
+export { defineGtfsSchema, derivedTable } from "./schema.js";
 
 export type {
   CloseOptions,
@@ -9,10 +10,34 @@ export type {
   ImportProgressEvent,
   ImportProgressPhase,
   ImportProgressTarget,
-  ImportTableState,
+  ImportTargetKind,
+  ImportTargetState,
   LoadGtfsTablesOptions,
   SqlBindMap,
   SqlBindValue,
   SqliteStorageMode,
   TableReadOptions,
 } from "./types.js";
+
+export type {
+  DerivedBuildContext,
+  DerivedBuilderProgress,
+  DerivedColumnDefinition,
+  DerivedColumnDefinitions,
+  DerivedColumnKind,
+  DerivedIndexDefinition,
+  DerivedJsBuild,
+  DerivedSqlBuild,
+  DerivedSqlScriptBuild,
+  DerivedTableBuild,
+  DerivedTableDefinition,
+  DerivedTableErrorPolicy,
+  DerivedTableName,
+  DerivedTableRow,
+  DerivedTableState,
+  GtfsSchemaDefinition,
+  GtfsSchemaRuntime,
+  GtfsSchemaTableName,
+  GtfsSchemaTableRow,
+  MaterializationSource,
+} from "./schema-types.js";
