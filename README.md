@@ -1,10 +1,10 @@
-# HyperLoad
+# GTFS-JP Workspace
 
 GTFS-JP v4 向けに、以下を分離した TypeScript ライブラリ構成です。
 
-- `@hyperload/gtfs-jp-v4-struct`: GTFS-JP v4 のテーブル/型定義
-- `@hyperload/gtfs-jp-v4-sql-load`: Browser SQLite WASM (in-memory / OPFS) のテーブル読込
-- `@hyperload/gtfs-jp-v4-frontend-sample`: 上記を使ったブラウザUIサンプル
+- `@gtfs-jp/types`: GTFS-JP v4 のテーブル/型定義
+- `@gtfs-jp/loader`: Browser SQLite WASM (in-memory / OPFS) のテーブル読込
+- `@gtfs-jp/frontend-sample`: 上記を使ったブラウザUIサンプル
 
 ## Setup
 
@@ -18,6 +18,6 @@ pnpm build
 
 ## Packages
 
-- `packages/gtfs-jp-v4-struct`
-- `packages/gtfs-jp-v4-sql-load`
-- `packages/gtfs-jp-v4-frontend-sample`
+- `packages/types`
+- `packages/loader`
+- `packages/frontend-sample`

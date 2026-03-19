@@ -1,0 +1,29 @@
+{
+  "name": "@gtfs-jp/loader",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gtfs-jp/types": "workspace:*",
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build6"
+  },
+  "devDependencies": {
+    "jszip": "^3.10.1",
+    "tsup": "^8.5.0",
+    "udsv": "^0.7.3"
+  }
+}
