@@ -15,14 +15,14 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4
 
-  packages/gtfs-v4-frontend-sample:
+  packages/gtfs-jp-v4-frontend-sample:
     dependencies:
-      '@hyperload/gtfs-v4-sql-load':
+      '@hyperload/gtfs-jp-v4-sql-load':
         specifier: workspace:*
-        version: link:../gtfs-v4-sql-load
-      '@hyperload/gtfs-v4-struct':
+        version: link:../gtfs-jp-v4-sql-load
+      '@hyperload/gtfs-jp-v4-struct':
         specifier: workspace:*
-        version: link:../gtfs-v4-struct
+        version: link:../gtfs-jp-v4-struct
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@18.3.28)(react@18.3.1)
@@ -73,11 +73,11 @@ importers:
         specifier: ^6.0.0
         version: 6.4.1
 
-  packages/gtfs-v4-sql-load:
+  packages/gtfs-jp-v4-sql-load:
     dependencies:
-      '@hyperload/gtfs-v4-struct':
+      '@hyperload/gtfs-jp-v4-struct':
         specifier: workspace:*
-        version: link:../gtfs-v4-struct
+        version: link:../gtfs-jp-v4-struct
       '@sqlite.org/sqlite-wasm':
         specifier: ^3.51.2-build6
         version: 3.51.2-build6
@@ -92,7 +92,7 @@ importers:
         specifier: ^0.7.3
         version: 0.7.3
 
-  packages/gtfs-v4-struct: {}
+  packages/gtfs-jp-v4-struct: {}
 
 packages:
 

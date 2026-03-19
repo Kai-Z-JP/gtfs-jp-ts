@@ -6,7 +6,7 @@
   "scripts": {
     "build": "pnpm -r --filter \"@hyperload/*\" build",
     "typecheck": "pnpm -r --filter \"@hyperload/*\" typecheck",
-    "test": "pnpm --filter \"@hyperload/gtfs-v4-struct\" test && pnpm --filter \"@hyperload/gtfs-v4-sql-load\" test"
+    "test": "pnpm --filter \"@hyperload/gtfs-jp-v4-struct\" test && pnpm --filter \"@hyperload/gtfs-jp-v4-sql-load\" test"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

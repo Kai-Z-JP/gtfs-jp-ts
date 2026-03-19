@@ -1,7 +1,7 @@
 # Sample Quick Start（初回 clone 向け）
 
 このドキュメントは、初めてこのリポジトリを `clone` した人が  
-`@hyperload/gtfs-v4-frontend-sample` を起動するための手順です。
+`@hyperload/gtfs-jp-v4-frontend-sample` を起動するための手順です。
 
 ## 前提
 
@@ -40,7 +40,7 @@ pnpm build
 5. Sample を起動
 
 ```bash
-pnpm --filter @hyperload/gtfs-v4-frontend-sample dev
+pnpm --filter @hyperload/gtfs-jp-v4-frontend-sample dev
 ```
 
 6. ブラウザでアクセス

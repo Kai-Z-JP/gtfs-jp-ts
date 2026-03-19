@@ -1,0 +1,45 @@
+export {
+  GTFS_JP_V4_SCHEMA,
+  type GtfsJpV4ColumnRequirement,
+  type GtfsJpV4ColumnSchema,
+  type GtfsJpV4Requirement,
+  type GtfsJpV4TableSchema,
+} from "./schema.js";
+
+export {
+  GTFS_JP_V4_FILE_NAMES,
+  GTFS_JP_V4_TABLE_NAMES,
+  getGtfsJpV4TableSchema,
+  getGtfsJpV4TableSchemaByFileName,
+  isGtfsJpV4FileName,
+  isGtfsJpV4TableName,
+  resolveGtfsJpV4FileNameFromTableName,
+  resolveGtfsJpV4TableNameFromFileName,
+} from "./helpers.js";
+
+export type {
+  BinaryFlag,
+  GtfsColor,
+  GtfsCurrencyCode,
+  GtfsDate,
+  GtfsEmail,
+  GtfsId,
+  GtfsLanguageCode,
+  GtfsPhoneNumber,
+  GtfsRow,
+  GtfsScalar,
+  GtfsText,
+  GtfsTime,
+  GtfsTimezone,
+  GtfsUrl,
+  GtfsJpV4ColumnsByTableName,
+  GtfsJpV4FileName,
+  GtfsJpV4Format,
+  GtfsJpV4SchemaEntry,
+  GtfsJpV4SchemaEntryByName,
+  GtfsJpV4TableName,
+  GtfsJpV4TableRequirement,
+  GtfsJpV4TableRow,
+  GtfsJpV4TypedRows,
+  RowFromColumns,
+} from "./types.js";
