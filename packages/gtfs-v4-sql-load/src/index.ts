@@ -99,26 +99,6 @@ const sqlite3Worker1Promiser = (
 ).sqlite3Worker1Promiser;
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const GTFS_TABLE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
-  routes: ["agency", "networks"],
-  stops: ["levels"],
-  trips: ["routes", "calendar"],
-  stop_times: ["trips", "stops", "location_groups", "booking_rules"],
-  calendar_dates: ["calendar"],
-  fare_attributes: ["agency"],
-  fare_rules: ["fare_attributes", "routes", "stops"],
-  pathways: ["stops", "levels"],
-  location_group_stops: ["location_groups", "stops"],
-  stop_areas: ["areas", "stops"],
-  route_networks: ["routes", "networks"],
-  frequencies: ["trips"],
-  transfers: ["stops", "routes", "trips"],
-  attributions: ["agency", "routes", "trips", "stops"],
-  fare_leg_rules: ["fare_products", "areas", "networks", "timeframes"],
-  fare_leg_join_rules: ["fare_leg_rules"],
-  fare_transfer_rules: ["fare_leg_rules", "fare_products"],
-};
-
 const assertIdentifier = (identifier: string): void => {
   if (!SQL_IDENTIFIER_RE.test(identifier)) {
     throw new Error(`Unsafe SQL identifier: ${identifier}`);
@@ -440,7 +420,6 @@ export class GtfsV4SqliteLoader {
       return await parseGtfsTxt(target);
     });
 
-    const writeLevels = resolveWriteLevels(parsedTables);
     const writeConcurrency =
       options.writeConcurrency === undefined
         ? this.#mode === "opfs"
@@ -456,26 +435,21 @@ export class GtfsV4SqliteLoader {
     await this.#withImportWriteTuning(async () => {
       await this.exec(this.#mode === "opfs" ? "BEGIN IMMEDIATE;" : "BEGIN;");
       try {
-        for (let levelIndex = 0; levelIndex < writeLevels.length; levelIndex += 1) {
-          const levelTables = writeLevels[levelIndex];
-          const settledResults = await mapWithConcurrencySettled(levelTables, writeConcurrency, async (parsedTable) => {
-            writeProgress += 1;
-            options.onStatus?.(
-              `DB write L${levelIndex + 1}/${writeLevels.length} (${writeProgress}/${parsedTables.length}): ${parsedTable.fileName}`,
-            );
-            return await writeParsedTable(this, parsedTable, skippedFiles, insertBatchSize);
-          });
+        const settledResults = await mapWithConcurrencySettled(parsedTables, writeConcurrency, async (parsedTable) => {
+          writeProgress += 1;
+          options.onStatus?.(`DB write (${writeProgress}/${parsedTables.length}): ${parsedTable.fileName}`);
+          return await writeParsedTable(this, parsedTable, skippedFiles, insertBatchSize);
+        });
 
-          const failed = settledResults.find((result) => result.status === "rejected");
-          if (failed && failed.status === "rejected") {
-            throw failed.reason;
-          }
+        const failed = settledResults.find((result) => result.status === "rejected");
+        if (failed && failed.status === "rejected") {
+          throw failed.reason;
+        }
 
-          for (const result of settledResults) {
-            if (result.status === "fulfilled") {
-              tablesImported += result.value.tablesImported;
-              rowsImported += result.value.rowsImported;
-            }
+        for (const result of settledResults) {
+          if (result.status === "fulfilled") {
+            tablesImported += result.value.tablesImported;
+            rowsImported += result.value.rowsImported;
           }
         }
 
@@ -857,79 +831,6 @@ const writeParsedTable = async (
     tablesImported: 1,
     rowsImported: dataRows.length,
   };
-};
-
-const resolveWriteLevels = (parsedTables: ParsedTable[]): ParsedTable[][] => {
-  if (parsedTables.length === 0) {
-    return [];
-  }
-
-  const duplicates = new Set<string>();
-  const seen = new Set<string>();
-  for (const parsedTable of parsedTables) {
-    if (seen.has(parsedTable.tableName)) {
-      duplicates.add(parsedTable.tableName);
-      continue;
-    }
-    seen.add(parsedTable.tableName);
-  }
-  if (duplicates.size > 0) {
-    return parsedTables.map((parsedTable) => [parsedTable]);
-  }
-
-  const byName = new Map(parsedTables.map((parsedTable) => [parsedTable.tableName, parsedTable]));
-  const allNames = new Set(parsedTables.map((parsedTable) => parsedTable.tableName));
-  const remaining = new Set(allNames);
-  const blockedBy = new Map<string, Set<string>>();
-  for (const tableName of allNames) {
-    blockedBy.set(tableName, new Set(getDependencyTableNames(tableName, allNames)));
-  }
-
-  const levels: ParsedTable[][] = [];
-  while (remaining.size > 0) {
-    const readyNames = parsedTables
-      .map((parsedTable) => parsedTable.tableName)
-      .filter((tableName) => remaining.has(tableName))
-      .filter((tableName) => (blockedBy.get(tableName)?.size ?? 0) === 0);
-
-    if (readyNames.length === 0) {
-      const fallback = parsedTables.find((parsedTable) => remaining.has(parsedTable.tableName));
-      if (!fallback) {
-        break;
-      }
-      readyNames.push(fallback.tableName);
-    }
-
-    const level: ParsedTable[] = [];
-    for (const readyName of readyNames) {
-      const parsedTable = byName.get(readyName);
-      if (!parsedTable) {
-        continue;
-      }
-      level.push(parsedTable);
-      remaining.delete(readyName);
-    }
-    if (level.length > 0) {
-      levels.push(level);
-    }
-
-    for (const dependencySet of blockedBy.values()) {
-      for (const readyName of readyNames) {
-        dependencySet.delete(readyName);
-      }
-    }
-  }
-
-  return levels;
-};
-
-const getDependencyTableNames = (tableName: string, availableTableNames: ReadonlySet<string>): string[] => {
-  if (tableName === "translations") {
-    return Array.from(availableTableNames).filter((name) => name !== tableName);
-  }
-
-  const dependencies = GTFS_TABLE_DEPENDENCIES[tableName] ?? [];
-  return dependencies.filter((dependency) => availableTableNames.has(dependency));
 };
 
 const mapWithConcurrency = async <T, R>(
