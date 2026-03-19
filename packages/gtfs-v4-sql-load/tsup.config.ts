@@ -9,6 +9,6 @@ export default defineConfig({
   clean: true,
   outDir: "dist",
   skipNodeModulesBundle: true,
-  noExternal: [/^(papaparse|jszip)(\/.*)?$/],
+  noExternal: [/^(udsv|jszip)(\/.*)?$/],
   external: ["@sqlite.org/sqlite-wasm", "@hyperload/gtfs-v4-struct"],
 });

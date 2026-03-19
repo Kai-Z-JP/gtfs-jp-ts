@@ -38,9 +38,6 @@ importers:
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@18.3.1)
-      papaparse:
-        specifier: ^5.5.3
-        version: 5.5.3
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -51,9 +48,6 @@ importers:
         specifier: ^3.3.1
         version: 3.5.0
     devDependencies:
-      '@types/papaparse':
-        specifier: ^5.5.2
-        version: 5.5.2
       '@types/react':
         specifier: ^18.3.24
         version: 18.3.28
@@ -88,18 +82,15 @@ importers:
         specifier: ^3.51.2-build6
         version: 3.51.2-build6
     devDependencies:
-      '@types/papaparse':
-        specifier: ^5.5.2
-        version: 5.5.2
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
-      papaparse:
-        specifier: ^5.5.3
-        version: 5.5.3
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(typescript@5.9.3)
+      udsv:
+        specifier: ^0.7.3
+        version: 0.7.3
 
   packages/gtfs-v4-struct: {}
 
@@ -998,18 +989,6 @@ packages:
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
     dev: true
 
-  /@types/node@25.3.5:
-    resolution: {integrity: sha512-oX8xrhvpiyRCQkG1MFchB09f+cXftgIXb3a7UUa4Y3wpmZPw5tyZGTLWhlESOLq1Rq6oDlc8npVU2/9xiCuXMA==}
-    dependencies:
-      undici-types: 7.18.2
-    dev: true
-
-  /@types/papaparse@5.5.2:
-    resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
-    dependencies:
-      '@types/node': 25.3.5
-    dev: true
-
   /@types/prop-types@15.7.15:
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
 
@@ -1643,9 +1622,6 @@ packages:
   /pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
-  /papaparse@5.5.3:
-    resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
-
   /path-parse@1.0.7:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
     dev: true
@@ -2091,12 +2067,12 @@ packages:
     hasBin: true
     dev: true
 
-  /ufo@1.6.3:
-    resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
+  /udsv@0.7.3:
+    resolution: {integrity: sha512-RLDImCO8M0DQmMi9V9YRjoecAc8+GiylpZico6ZuibPvRGRj3LGI1YPYLzBrnQTSax0metXnDoBFg/1zSgGIhg==}
     dev: true
 
-  /undici-types@7.18.2:
-    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
+  /ufo@1.6.3:
+    resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
     dev: true
 
   /update-browserslist-db@1.2.3(browserslist@4.28.1):

@@ -80,11 +80,11 @@ export const importZipIntoSession = async ({
 
   const parseChunkRowCount = Math.max(
     1,
-    Math.floor(options.parseChunkRowCount ?? (mode === "opfs" ? 1000 : 500)),
+    Math.floor(options.parseChunkRowCount ?? (mode === "opfs" ? 10000 : 5000)),
   );
   const insertBatchRowCount = Math.max(
     1,
-    Math.floor(options.insertBatchRowCount ?? (mode === "opfs" ? 1000 : 250)),
+    Math.floor(options.insertBatchRowCount ?? (mode === "opfs" ? 10000 : 2500)),
   );
 
   const writerCount = Math.min(Math.max(1, dbWriteConcurrency), targets.length);

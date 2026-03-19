@@ -1,4 +1,4 @@
-import Papa from "papaparse";
+import { inferSchema, initParser } from "udsv";
 
 import type {
   ParseWorkerErrorResponse,
@@ -59,18 +59,36 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
     let chunkIndex = 0;
     let parsedRows = 0;
 
-    const parsed = Papa.parse<string[]>(csv, {
-      header: false,
-      skipEmptyLines: "greedy",
-      step: (result) => {
-        if (result.errors.length > 0) {
-          const firstError = result.errors[0];
-          throw new Error(
-            `${request.fileName}: CSV parse error at row ${String(firstError.row)}: ${firstError.message}`,
-          );
+    const flushChunk = (): void => {
+      if (chunk.length === 0) {
+        return;
+      }
+
+      const response: ParseWorkerResponse = {
+        type: "chunk",
+        requestId: request.requestId,
+        chunkIndex,
+        rows: chunk,
+      };
+      runtime.postMessage(response);
+      chunk = [];
+      chunkIndex += 1;
+    };
+
+    if (csv.trim() !== "") {
+      const parser = initParser(
+        inferSchema(csv, {
+          header: () => [],
+          trim: false,
+        }),
+      );
+
+      parser.stringArrs<string[]>(csv, (rawRow) => {
+        const row = rawRow.slice();
+        if (!hasNonEmptyCell(row)) {
+          return;
         }
 
-        const row = result.data;
         if (!headers) {
           headers = row.map((value, index) => normalizeHeaderName(value, request.fileName, index));
           if (new Set(headers).size !== headers.length) {
@@ -86,34 +104,13 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
           return;
         }
 
-        if (!hasNonEmptyCell(row)) {
-          return;
-        }
-
         parsedRows += 1;
         chunk.push(row);
 
-        if (chunk.length < chunkSize) {
-          return;
+        if (chunk.length >= chunkSize) {
+          flushChunk();
         }
-
-        const response: ParseWorkerResponse = {
-          type: "chunk",
-          requestId: request.requestId,
-          chunkIndex,
-          rows: chunk,
-        };
-        runtime.postMessage(response);
-        chunk = [];
-        chunkIndex += 1;
-      },
-    });
-
-    if (parsed.errors.length > 0) {
-      const firstError = parsed.errors[0];
-      throw new Error(
-        `${request.fileName}: CSV parse error at row ${String(firstError.row)}: ${firstError.message}`,
-      );
+      });
     }
 
     if (!headers) {
@@ -125,15 +122,7 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
       runtime.postMessage(startResponse);
     }
 
-    if (chunk.length > 0) {
-      const response: ParseWorkerResponse = {
-        type: "chunk",
-        requestId: request.requestId,
-        chunkIndex,
-        rows: chunk,
-      };
-      runtime.postMessage(response);
-    }
+    flushChunk();
 
     const doneResponse: ParseWorkerResponse = {
       type: "done",

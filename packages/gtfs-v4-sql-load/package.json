@@ -23,8 +23,7 @@
   },
   "devDependencies": {
     "jszip": "^3.10.1",
-    "papaparse": "^5.5.3",
-    "@types/papaparse": "^5.5.2",
-    "tsup": "^8.5.0"
+    "tsup": "^8.5.0",
+    "udsv": "^0.7.3"
   }
 }
