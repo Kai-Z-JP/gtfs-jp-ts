@@ -32,11 +32,39 @@ export interface CloseOptions {
   unlink?: boolean;
 }
 
+export type ImportProgressPhase =
+  | "prepare"
+  | "table-update"
+  | "opfs-stage"
+  | "done"
+  | "error";
+
+export type ImportTableState =
+  | "queued"
+  | "parsing"
+  | "parsed"
+  | "writing"
+  | "done"
+  | "skipped"
+  | "error";
+
+export interface ImportProgressTarget {
+  fileName: string;
+  tableName: string;
+}
+
+export interface ImportProgressEvent {
+  phase: ImportProgressPhase;
+  targets?: ImportProgressTarget[];
+  fileName?: string;
+  tableState?: ImportTableState;
+}
+
 export interface ImportGtfsZipOptions {
   parseWorkerConcurrency?: number;
   dbWriteConcurrency?: number;
   opfsImportMode?: "memory-stage" | "direct";
-  onStatus?: (message: string) => void;
+  onProgress?: (event: ImportProgressEvent) => void;
 }
 
 export interface ImportGtfsZipResult {
@@ -83,6 +111,7 @@ type ParsedTable = {
 type WriteImportResult = {
   tablesImported: number;
   rowsImported: number;
+  tableState: "done" | "skipped";
 };
 
 type ParseWorkerRequest = {
@@ -156,7 +185,7 @@ const buildLimitOffsetClause = (
 ): { clause: string; bind: SqlBindMap } => {
   const bind: SqlBindMap = {};
   const parts: string[] = [];
-  const { limit } = options;
+  const {limit} = options;
   const offset = options.offset ?? 0;
 
   assertNonNegativeInteger("offset", offset);
@@ -176,10 +205,10 @@ const buildLimitOffsetClause = (
   }
 
   if (parts.length === 0) {
-    return { clause: "", bind };
+    return {clause: "", bind};
   }
 
-  return { clause: ` ${parts.join(" ")}`, bind };
+  return {clause: ` ${parts.join(" ")}`, bind};
 };
 
 const normalizeBind = (bind: SqlBindMap): SqlBindMap => {
@@ -192,6 +221,13 @@ const normalizeBind = (bind: SqlBindMap): SqlBindMap => {
     normalized[`:${key}`] = value;
   }
   return normalized;
+};
+
+const emitProgress = (
+  options: ImportGtfsZipOptions,
+  event: ImportProgressEvent,
+): void => {
+  options.onProgress?.(event);
 };
 
 const resolveFilename = (mode: SqliteStorageMode, fileName?: string): string => {
@@ -318,7 +354,7 @@ class AsyncQueue<T> {
     }
 
     return await new Promise<T | undefined>((resolve, reject) => {
-      this.#waiters.push({ resolve, reject });
+      this.#waiters.push({resolve, reject});
     });
   }
 }
@@ -356,7 +392,7 @@ class ParseWorkerClient {
 
     const byteBuffer = requestBytes.buffer;
     return await new Promise<ParsedTable>((resolve, reject) => {
-      this.#pending.set(requestId, { resolve, reject });
+      this.#pending.set(requestId, {resolve, reject});
       const payload: ParseWorkerRequest = {
         type: "parse",
         requestId,
@@ -437,7 +473,7 @@ export class GtfsV4SqliteLoader {
     this.#promiser = await createPromiser(this.#worker);
     const filename = resolveFilename(this.#mode, this.#filename);
 
-    const response = await this.#promiser("open", { filename });
+    const response = await this.#promiser("open", {filename});
     const dbId =
       response.dbId ??
       (response.result as Record<string, string | number> | undefined)?.dbId;
@@ -465,7 +501,7 @@ export class GtfsV4SqliteLoader {
   async clearDatabase(): Promise<void> {
     this.#ensureOpen();
 
-    await this.close({ unlink: this.#mode === "opfs" });
+    await this.close({unlink: this.#mode === "opfs"});
     await this.open();
   }
 
@@ -485,7 +521,7 @@ export class GtfsV4SqliteLoader {
   async hasTable(tableName: string): Promise<boolean> {
     const rows = await this.#execRows<{ found: number }>(
       "SELECT 1 as found FROM sqlite_master WHERE type = 'table' AND name = :name LIMIT 1",
-      { name: tableName },
+      {name: tableName},
     );
 
     return rows.length > 0;
@@ -500,9 +536,10 @@ export class GtfsV4SqliteLoader {
     }
 
     const orderByClause = buildOrderByClause(options.orderBy);
-    const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
+    const {clause: limitOffsetClause, bind} = buildLimitOffsetClause(options);
 
-    const sql = `SELECT * FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
+    const sql = `SELECT *
+                 FROM ${quoteIdentifier(tableName)} ${orderByClause}${limitOffsetClause}`;
 
     return await this.#execRows<GtfsV4TableRow<TName>>(sql, bind);
   }
@@ -514,9 +551,10 @@ export class GtfsV4SqliteLoader {
     assertIdentifier(tableName);
 
     const orderByClause = buildOrderByClause(options.orderBy);
-    const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
+    const {clause: limitOffsetClause, bind} = buildLimitOffsetClause(options);
 
-    const sql = `SELECT * FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
+    const sql = `SELECT *
+                 FROM ${quoteIdentifier(tableName)} ${orderByClause}${limitOffsetClause}`;
 
     return await this.#execRows<GtfsRow>(sql, bind);
   }
@@ -547,11 +585,23 @@ export class GtfsV4SqliteLoader {
     file: File | Blob | ArrayBuffer | Uint8Array,
     options: ImportGtfsZipOptions = {},
   ): Promise<ImportGtfsZipResult> {
-    if (this.#mode === "opfs" && (options.opfsImportMode ?? "memory-stage") === "memory-stage") {
-      return await this.#importViaMemoryStage(file, options);
-    }
+    try {
+      const result =
+        this.#mode === "opfs" && (options.opfsImportMode ?? "memory-stage") === "memory-stage"
+          ? await this.#importViaMemoryStage(file, options)
+          : await this.#importIntoCurrentDb(file, options);
 
-    return await this.#importIntoCurrentDb(file, options);
+      emitProgress(options, {
+        phase: "done",
+      });
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      emitProgress(options, {
+        phase: "error",
+      });
+      throw error;
+    }
   }
 
   async #importIntoCurrentDb(
@@ -578,12 +628,20 @@ export class GtfsV4SqliteLoader {
         skippedFiles.push(fileName);
         continue;
       }
-      importTargets.push({ entry, fileName, tableName });
+      importTargets.push({entry, fileName, tableName});
     }
 
     if (importTargets.length === 0) {
       throw new Error("No importable .txt files found in ZIP");
     }
+
+    emitProgress(options, {
+      phase: "prepare",
+      targets: importTargets.map((target) => ({
+        fileName: target.fileName,
+        tableName: target.tableName,
+      })),
+    });
 
     const parseWorkerConcurrency = normalizeConcurrency(
       options.parseWorkerConcurrency,
@@ -599,19 +657,26 @@ export class GtfsV4SqliteLoader {
 
     let tablesImported = 0;
     let rowsImported = 0;
-    let writeProgress = 0;
     let nextParseIndex = 0;
     let hasError = false;
     let firstError: unknown;
 
     const parsedQueue = new AsyncQueue<ParsedTable>();
-    const setFirstError = (error: unknown): void => {
+    const setFirstError = (error: unknown, fileName?: string): void => {
       if (hasError) {
         return;
       }
 
       hasError = true;
       firstError = error;
+      if (fileName) {
+        const message = error instanceof Error ? error.message : String(error);
+        emitProgress(options, {
+          phase: "table-update",
+          fileName,
+          tableState: "error",
+        });
+      }
       parsedQueue.fail(error);
     };
 
@@ -640,20 +705,33 @@ export class GtfsV4SqliteLoader {
                 }
 
                 const target = importTargets[index];
-                options.onStatus?.(
-                  `ZIP parse (${index + 1}/${importTargets.length}): ${target.fileName}`,
-                );
-                const bytes = await target.entry.async("uint8array");
-                const parsedTable = await parseWorker.parse(
-                  target.fileName,
-                  target.tableName,
-                  bytes,
-                );
+                emitProgress(options, {
+                  phase: "table-update",
+                  fileName: target.fileName,
+                  tableState: "parsing",
+                });
+                let parsedTable: ParsedTable;
+                try {
+                  const bytes = await target.entry.async("uint8array");
+                  parsedTable = await parseWorker.parse(
+                    target.fileName,
+                    target.tableName,
+                    bytes,
+                  );
+                } catch (error) {
+                  setFirstError(error, target.fileName);
+                  return;
+                }
 
                 if (hasError) {
                   return;
                 }
 
+                emitProgress(options, {
+                  phase: "table-update",
+                  fileName: target.fileName,
+                  tableState: "parsed",
+                });
                 parsedQueue.push(parsedTable);
               }
             } catch (error) {
@@ -687,20 +765,26 @@ export class GtfsV4SqliteLoader {
               }
 
               try {
-                writeProgress += 1;
-                options.onStatus?.(
-                  `DB write (${writeProgress}/${importTargets.length}): ${parsedTable.fileName}`,
-                );
+                emitProgress(options, {
+                  phase: "table-update",
+                  fileName: parsedTable.fileName,
+                  tableState: "writing",
+                });
                 const result = await writeParsedTable(
                   this,
                   parsedTable,
                   skippedFiles,
                   insertBatchSize,
                 );
+                emitProgress(options, {
+                  phase: "table-update",
+                  fileName: parsedTable.fileName,
+                  tableState: result.tableState,
+                });
                 tablesImported += result.tablesImported;
                 rowsImported += result.rowsImported;
               } catch (error) {
-                setFirstError(error);
+                setFirstError(error, parsedTable.fileName);
                 return;
               }
             }
@@ -739,7 +823,9 @@ export class GtfsV4SqliteLoader {
     const opfsFilename = resolveFilename(this.#mode, this.#filename);
     const opfsPath = toOpfsPath(opfsFilename);
 
-    options.onStatus?.("OPFS memory-stage: close current DB");
+    emitProgress(options, {
+      phase: "opfs-stage",
+    });
     await this.close();
 
     const stagingLoader = new GtfsV4SqliteLoader({
@@ -752,12 +838,18 @@ export class GtfsV4SqliteLoader {
     let pendingError: unknown;
 
     try {
-      options.onStatus?.("OPFS memory-stage: open :memory: DB");
+      emitProgress(options, {
+        phase: "opfs-stage",
+      });
       await stagingLoader.open();
       result = await stagingLoader.#importIntoCurrentDb(file, options);
-      options.onStatus?.("OPFS memory-stage: export sqlite bytes");
+      emitProgress(options, {
+        phase: "opfs-stage",
+      });
       const bytes = await stagingLoader.#exportCurrentDbBytes();
-      options.onStatus?.(`OPFS memory-stage: write sqlite file (${opfsPath})`);
+      emitProgress(options, {
+        phase: "opfs-stage",
+      });
       await writeBytesToOpfsFile(opfsPath, bytes);
     } catch (error) {
       pendingError = error;
@@ -769,7 +861,9 @@ export class GtfsV4SqliteLoader {
       }
 
       try {
-        options.onStatus?.("OPFS memory-stage: reopen OPFS DB");
+        emitProgress(options, {
+          phase: "opfs-stage",
+        });
         await this.open();
       } catch (error) {
         pendingError ??= error;
@@ -971,11 +1065,11 @@ const writeBytesToOpfsFile = async (path: string, bytes: Uint8Array): Promise<vo
 
   let directory = await globalThis.navigator.storage.getDirectory();
   for (let index = 0; index < normalizedParts.length - 1; index += 1) {
-    directory = await directory.getDirectoryHandle(normalizedParts[index], { create: true });
+    directory = await directory.getDirectoryHandle(normalizedParts[index], {create: true});
   }
 
   const fileName = normalizedParts[normalizedParts.length - 1];
-  const fileHandle = await directory.getFileHandle(fileName, { create: true });
+  const fileHandle = await directory.getFileHandle(fileName, {create: true});
   const writable = await fileHandle.createWritable();
 
   let writeFailed = false;
@@ -1027,12 +1121,16 @@ const writeParsedTable = async (
     return {
       tablesImported: 0,
       rowsImported: 0,
+      tableState: "skipped",
     };
   }
 
   await loader.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(parsedTable.tableName)};`);
   const createColumns = parsedTable.headers.map((column) => `${quoteIdentifier(column)} TEXT`).join(", ");
-  await loader.exec(`CREATE TABLE ${quoteIdentifier(parsedTable.tableName)} (${createColumns});`);
+  await loader.exec(`CREATE TABLE ${quoteIdentifier(parsedTable.tableName)}
+                     (
+                         ${createColumns}
+                     );`);
 
   const dataRows = parsedTable.dataRows;
   if (dataRows.length === 0) {
@@ -1040,6 +1138,7 @@ const writeParsedTable = async (
     return {
       tablesImported: 1,
       rowsImported: 0,
+      tableState: "skipped",
     };
   }
 
@@ -1053,12 +1152,14 @@ const writeParsedTable = async (
       })
       .join(", ");
 
-    await loader.exec(`INSERT INTO ${quoteIdentifier(parsedTable.tableName)} (${quotedHeaders}) VALUES ${valuesSql};`);
+    await loader.exec(`INSERT INTO ${quoteIdentifier(parsedTable.tableName)} (${quotedHeaders})
+                       VALUES ${valuesSql};`);
   }
 
   return {
     tablesImported: 1,
     rowsImported: dataRows.length,
+    tableState: "done",
   };
 };
 

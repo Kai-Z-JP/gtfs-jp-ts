@@ -20,7 +20,13 @@ const importResult = await loader.importGtfsZip(file, {
   parseWorkerConcurrency: 8,
   dbWriteConcurrency: 4,
   opfsImportMode: "memory-stage",
-  onStatus: (message) => console.log(message),
+  onProgress: (event) => {
+    if (event.tableState && event.fileName) {
+      console.log(event.fileName, event.tableState);
+      return;
+    }
+    console.log(event.phase);
+  },
 });
 console.log(importResult);
 
