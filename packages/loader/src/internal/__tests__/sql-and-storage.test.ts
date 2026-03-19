@@ -1,15 +1,16 @@
-import { describe, expect, it } from "vitest";
+import {describe, expect, it} from "vitest";
 
 import {
   assertIdentifier,
   buildLimitOffsetClause,
   buildOrderByClause,
+  buildSelectClause,
   normalizeBind,
   quoteIdentifier,
   toSqlLiteral,
   toTableNameFromTxtFile,
 } from "../sql.js";
-import { toOpfsPath } from "../storage.js";
+import {toOpfsPath} from "../storage.js";
 
 describe("sql helpers", () => {
   it("quotes SQL identifiers safely", () => {
@@ -23,6 +24,8 @@ describe("sql helpers", () => {
     expect(buildOrderByClause(["route_id", "route_type"])).toBe(
       ' ORDER BY "route_id", "route_type"',
     );
+    expect(buildSelectClause()).toBe("SELECT *");
+    expect(buildSelectClause(["route_id", "route_type"])).toBe('SELECT "route_id", "route_type"');
 
     expect(buildLimitOffsetClause({})).toEqual({ clause: "", bind: {} });
     expect(buildLimitOffsetClause({ limit: 50, offset: 10 })).toEqual({
@@ -34,6 +37,7 @@ describe("sql helpers", () => {
       bind: { offset: 5 },
     });
     expect(() => buildLimitOffsetClause({ limit: -1 })).toThrow();
+    expect(() => buildSelectClause(["route_id", "x y"])).toThrow();
   });
 
   it("normalizes bind keys and SQL literals", () => {

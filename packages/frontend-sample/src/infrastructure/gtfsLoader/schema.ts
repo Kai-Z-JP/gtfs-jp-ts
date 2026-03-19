@@ -1,31 +1,7 @@
-import { defineGtfsSchema, derivedTable, type DerivedTableRow } from "@gtfs-jp/loader";
+import {defineGtfsSchema, derivedTable, type DerivedTableRow, type SourceReadRow,} from "@gtfs-jp/loader";
 
 type SampleRuntime = {
   timezone: string;
-};
-
-type FeedInfoRow = {
-  feed_start_date: string | null;
-  feed_end_date: string | null;
-};
-
-type CalendarRow = {
-  service_id: string | null;
-  monday: string | null;
-  tuesday: string | null;
-  wednesday: string | null;
-  thursday: string | null;
-  friday: string | null;
-  saturday: string | null;
-  sunday: string | null;
-  start_date: string | null;
-  end_date: string | null;
-};
-
-type CalendarDateRow = {
-  service_id: string | null;
-  date: string | null;
-  exception_type: string | null;
 };
 
 const universalCalendarColumns = {
@@ -40,6 +16,22 @@ const universalCalendarColumns = {
 } as const;
 
 type UniversalCalendarRow = DerivedTableRow<typeof universalCalendarColumns>;
+type CalendarRow = SourceReadRow<
+  "calendar",
+  [
+    "service_id",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "start_date",
+    "end_date",
+  ]
+>;
+type CalendarDateRow = SourceReadRow<"calendar_dates", ["service_id", "date", "exception_type"]>;
 
 const universalCalendar = derivedTable<"universal_calendar", typeof universalCalendarColumns, SampleRuntime>({
   name: "universal_calendar",
@@ -59,30 +51,34 @@ const universalCalendar = derivedTable<"universal_calendar", typeof universalCal
         throw new Error("runtime.timezone is required");
       }
 
-      const feedInfoRows = await context.query<FeedInfoRow>(
-        "SELECT feed_start_date, feed_end_date FROM feed_info LIMIT 1;",
-      );
+      const feedInfoRows = await context.readSource("feed_info", {
+        limit: 1,
+        columns: ["feed_start_date", "feed_end_date"],
+      });
       const feedInfo = feedInfoRows[0];
 
       if (!feedInfo?.feed_start_date || !feedInfo.feed_end_date) {
         throw new Error("feed_info must contain feed_start_date and feed_end_date");
       }
 
-      const calendar = await context.query<CalendarRow>(
-        `SELECT service_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_date, end_date
-         FROM calendar;`,
-      );
+      const calendar = await context.readSource("calendar", {
+        columns: [
+          "service_id",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday",
+          "start_date",
+          "end_date",
+        ],
+      });
 
-      const calendarDatesExists = await context.query<{ found: number }>(
-        "SELECT 1 AS found FROM sqlite_master WHERE type = 'table' AND name = 'calendar_dates' LIMIT 1;",
-      );
-
-      const calendarDates =
-        calendarDatesExists.length > 0
-          ? await context.query<CalendarDateRow>(
-              "SELECT service_id, date, exception_type FROM calendar_dates;",
-            )
-          : [];
+      const calendarDates = await context.readOptionalSource("calendar_dates", {
+        columns: ["service_id", "date", "exception_type"],
+      });
 
       const calendarMap = createCalendarMap(calendar);
       const calendarDatesMap = createCalendarDatesMap(calendarDates);
@@ -145,7 +141,7 @@ const dayOfWeek = (dateCode: number): number => {
   return dayIndex === 0 ? 7 : dayIndex;
 };
 
-const isEnabled = (value: string | null): boolean => value === "1";
+const isEnabled = (value: number | null): boolean => value === 1;
 
 const createCalendarMap = (calendar: readonly CalendarRow[]): ServiceCalendarMap => {
   const calendarMap = new Map<number, CalendarRow[]>();
@@ -181,9 +177,9 @@ const createCalendarDatesMap = (calendarDates: readonly CalendarDateRow[]): Cale
     const dateCode = parseDateCode(row.date);
     const entry = calendarDatesMap.get(dateCode) ?? { added: [], removed: [] };
 
-    if (row.exception_type === "1") {
+    if (row.exception_type === 1) {
       entry.added.push(row.service_id);
-    } else if (row.exception_type === "2") {
+    } else if (row.exception_type === 2) {
       entry.removed.push(row.service_id);
     }
 

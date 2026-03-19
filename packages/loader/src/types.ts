@@ -1,12 +1,14 @@
-import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from "@gtfs-jp/types";
+import type {GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow} from "@gtfs-jp/types";
 
 import type {
   GtfsSchemaDefinition,
   GtfsSchemaRuntime,
   GtfsSchemaTableName,
   GtfsSchemaTableRow,
+  SourceReadColumns,
+  SourceReadRow,
 } from "./schema-types.js";
-import type { SqlBindMap, SqlBindValue } from "./sql-types.js";
+import type {SqlBindMap, SqlBindValue} from "./sql-types.js";
 
 export type SqliteStorageMode = "memory" | "opfs";
 
@@ -27,6 +29,7 @@ export interface TableReadOptions {
   limit?: number;
   offset?: number;
   orderBy?: string | readonly string[];
+  columns?: readonly string[];
 }
 
 export interface LoadGtfsTablesOptions extends TableReadOptions {
@@ -88,6 +91,18 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
     tableName: TName,
     options?: TableReadOptions,
   ): Promise<Array<GtfsJpV4TableRow<TName>>>;
+
+  readSource<
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
+    tableName: TName,
+    options?: {
+      limit?: number;
+      orderBy?: string | readonly string[];
+      columns?: TColumns;
+    },
+  ): Promise<Array<SourceReadRow<TName, TColumns>>>;
   readRows(tableName: string, options?: TableReadOptions): Promise<GtfsRow[]>;
   loadTables(options?: LoadGtfsTablesOptions): Promise<Partial<Record<GtfsJpV4TableName, GtfsRow[]>>>;
   importZip(

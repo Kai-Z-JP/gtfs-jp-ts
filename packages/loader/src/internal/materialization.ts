@@ -1,4 +1,4 @@
-import { GTFS_JP_V4_TABLE_NAMES, type GtfsRow } from "@gtfs-jp/types";
+import {GTFS_JP_V4_TABLE_NAMES, type GtfsJpV4TableName, type GtfsRow,} from "@gtfs-jp/types";
 
 import type {
   DerivedBuildContext,
@@ -9,10 +9,14 @@ import type {
   DerivedSqlBuild,
   DerivedTableBuild,
   GtfsSchemaDefinition,
+  SourceReadColumns,
+  SourceReadOptions,
+  SourceReadRow,
 } from "../schema-types.js";
-import type { ImportProgressEmitter, ImportTargetKind, ImportTargetState, SqlBindMap, SqlBindValue } from "../types.js";
-import { quoteIdentifier } from "./sql.js";
-import { SqliteSession } from "./session.js";
+import type {ImportProgressEmitter, ImportTargetKind, ImportTargetState, SqlBindMap, SqlBindValue} from "../types.js";
+import {quoteIdentifier} from "./sql.js";
+import {SqliteSession} from "./session.js";
+import {readTypedGtfsSourceRows} from "./source-read.js";
 
 const MATERIALIZATION_RUNS_TABLE = "_materialization_runs";
 const MATERIALIZATION_TABLES_TABLE = "_materialization_tables";
@@ -362,6 +366,16 @@ const insertJsBatch = async (
   );
 };
 
+const readSourceRows = async <
+  TName extends GtfsJpV4TableName,
+  TColumns extends SourceReadColumns<TName> | undefined = undefined,
+>(
+  session: SqliteSession,
+  tableName: TName,
+  options: SourceReadOptions<TName, TColumns> = {},
+): Promise<Array<SourceReadRow<TName, TColumns>>> =>
+  (await readTypedGtfsSourceRows(session, tableName, options)) as Array<SourceReadRow<TName, TColumns>>;
+
 const createBuilderContext = (
   session: SqliteSession,
   runtime: Record<string, unknown>,
@@ -371,6 +385,21 @@ const createBuilderContext = (
   runtime: Record<string, unknown>;
   exec: (sql: string, bind?: SqlBindMap) => Promise<void>;
   query: <TRow extends GtfsRow = GtfsRow>(sql: string, bind?: SqlBindMap) => Promise<TRow[]>;
+  readSource: <
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
+    tableName: TName,
+    options?: SourceReadOptions<TName, TColumns>,
+  ) => Promise<Array<SourceReadRow<TName, TColumns>>>;
+  readOptionalSource: <
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
+    tableName: TName,
+    options?: SourceReadOptions<TName, TColumns>,
+  ) => Promise<Array<SourceReadRow<TName, TColumns>>>;
+  hasSource: (tableName: GtfsJpV4TableName) => Promise<boolean>;
   emitProgress: (progress: DerivedBuilderProgress) => void;
 } => ({
   runtime,
@@ -379,6 +408,39 @@ const createBuilderContext = (
   },
   query: async <TRow extends GtfsRow = GtfsRow>(sql: string, bind: SqlBindMap = {}) =>
     await session.execRows<TRow>(sql, bind),
+  readSource: async <TName extends GtfsJpV4TableName, TColumns extends SourceReadColumns<TName> | undefined>(
+    sourceTableName: TName,
+    options: SourceReadOptions<TName, TColumns> = {},
+  ): Promise<Array<SourceReadRow<TName, TColumns>>> => {
+    if (!GTFS_SOURCE_SET.has(sourceTableName)) {
+      throw new Error(`Unknown GTFS source table: ${sourceTableName}`);
+    }
+    if (!(await tableExists(session, sourceTableName))) {
+      throw new Error(`Required GTFS source table is missing: ${sourceTableName}`);
+    }
+    return await readSourceRows(session, sourceTableName, options);
+  },
+  readOptionalSource: async <
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined,
+  >(
+    sourceTableName: TName,
+    options: SourceReadOptions<TName, TColumns> = {},
+  ): Promise<Array<SourceReadRow<TName, TColumns>>> => {
+    if (!GTFS_SOURCE_SET.has(sourceTableName)) {
+      throw new Error(`Unknown GTFS source table: ${sourceTableName}`);
+    }
+    if (!(await tableExists(session, sourceTableName))) {
+      return [];
+    }
+    return await readSourceRows(session, sourceTableName, options);
+  },
+  hasSource: async (sourceTableName: GtfsJpV4TableName): Promise<boolean> => {
+    if (!GTFS_SOURCE_SET.has(sourceTableName)) {
+      throw new Error(`Unknown GTFS source table: ${sourceTableName}`);
+    }
+    return await tableExists(session, sourceTableName);
+  },
   emitProgress: (progress) => {
     emitTargetEvent(
       emit,

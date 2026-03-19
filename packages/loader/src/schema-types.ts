@@ -1,6 +1,6 @@
-import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from "@gtfs-jp/types";
+import type {GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow} from "@gtfs-jp/types";
 
-import type { SqlBindMap, SqlBindValue } from "./sql-types.js";
+import type {SqlBindMap} from "./sql-types.js";
 
 export type MaterializationSource = "gtfs-jp-v4";
 export type DerivedColumnKind = "string" | "number";
@@ -26,10 +26,46 @@ export type DerivedBuilderProgress = {
   rowsWritten?: number;
 };
 
+export type SourceReadColumns<TName extends GtfsJpV4TableName> = readonly Extract<
+  keyof GtfsJpV4TableRow<TName>,
+  string
+>[];
+
+export type SourceReadOptions<
+  TName extends GtfsJpV4TableName = GtfsJpV4TableName,
+  TColumns extends SourceReadColumns<TName> | undefined = undefined,
+> = {
+  limit?: number;
+  orderBy?: string | readonly string[];
+  columns?: TColumns;
+};
+
+export type SourceReadRow<
+  TName extends GtfsJpV4TableName,
+  TColumns extends SourceReadColumns<TName> | undefined = undefined,
+> = TColumns extends readonly (infer TColumn)[]
+  ? Pick<GtfsJpV4TableRow<TName>, Extract<TColumn, keyof GtfsJpV4TableRow<TName>>>
+  : GtfsJpV4TableRow<TName>;
+
 export type DerivedBuildContext<TRuntime extends Record<string, unknown> = Record<string, unknown>> = {
   runtime: TRuntime;
   exec: (sql: string, bind?: SqlBindMap) => Promise<void>;
   query: <TRow extends GtfsRow = GtfsRow>(sql: string, bind?: SqlBindMap) => Promise<TRow[]>;
+  readSource: <
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
+    tableName: TName,
+    options?: SourceReadOptions<TName, TColumns>,
+  ) => Promise<Array<SourceReadRow<TName, TColumns>>>;
+  readOptionalSource: <
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
+    tableName: TName,
+    options?: SourceReadOptions<TName, TColumns>,
+  ) => Promise<Array<SourceReadRow<TName, TColumns>>>;
+  hasSource: (tableName: GtfsJpV4TableName) => Promise<boolean>;
   emitProgress: (progress: DerivedBuilderProgress) => void;
 };
 

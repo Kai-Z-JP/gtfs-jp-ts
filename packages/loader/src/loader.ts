@@ -1,9 +1,9 @@
 import {
   GTFS_JP_V4_TABLE_NAMES,
-  isGtfsJpV4TableName,
   type GtfsJpV4TableName,
   type GtfsJpV4TableRow,
   type GtfsRow,
+  isGtfsJpV4TableName,
 } from "@gtfs-jp/types";
 
 import type {
@@ -11,6 +11,8 @@ import type {
   GtfsSchemaRuntime,
   GtfsSchemaTableName,
   GtfsSchemaTableRow,
+  SourceReadColumns,
+  SourceReadRow,
 } from "./schema-types.js";
 import type {
   GtfsLoader,
@@ -22,12 +24,38 @@ import type {
   SqliteStorageMode,
   TableReadOptions,
 } from "./types.js";
-import { importZipViaMemoryStage } from "./internal/import/import-memory-stage.js";
-import { importZipIntoSession } from "./internal/import/import-pipeline.js";
-import { compileGtfsSchema, isInternalMaterializationTable, runDerivedMaterialization } from "./internal/materialization.js";
-import { assertIdentifier, buildLimitOffsetClause, buildOrderByClause, quoteIdentifier } from "./internal/sql.js";
-import { SqliteSession } from "./internal/session.js";
-import { getOpfsUnavailableReason } from "./internal/storage.js";
+import {importZipViaMemoryStage} from "./internal/import/import-memory-stage.js";
+import {importZipIntoSession} from "./internal/import/import-pipeline.js";
+import {
+  compileGtfsSchema,
+  isInternalMaterializationTable,
+  runDerivedMaterialization
+} from "./internal/materialization.js";
+import {
+  assertIdentifier,
+  buildLimitOffsetClause,
+  buildOrderByClause,
+  buildSelectClause,
+  quoteIdentifier
+} from "./internal/sql.js";
+import {readTypedGtfsSourceRows} from "./internal/source-read.js";
+import {SqliteSession} from "./internal/session.js";
+import {getOpfsUnavailableReason} from "./internal/storage.js";
+
+const readRowsFromSession = async (
+  session: SqliteSession,
+  tableName: string,
+  options: TableReadOptions = {},
+): Promise<GtfsRow[]> => {
+  assertIdentifier(tableName);
+
+  const selectClause = buildSelectClause(options.columns);
+  const orderByClause = buildOrderByClause(options.orderBy);
+  const {clause: limitOffsetClause, bind} = buildLimitOffsetClause(options);
+
+  const sql = `${selectClause} FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
+  return await session.execRows<GtfsRow>(sql, bind);
+};
 
 class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> implements GtfsLoader<TSchema> {
   #mode: SqliteStorageMode;
@@ -114,14 +142,26 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
     return (await this.readRows(tableName, options)) as Array<GtfsJpV4TableRow<TName>>;
   }
 
+  async readSource<
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
+    tableName: TName,
+    options: {
+      limit?: number;
+      orderBy?: string | readonly string[];
+      columns?: TColumns;
+    } = {},
+  ): Promise<Array<SourceReadRow<TName, TColumns>>> {
+    if (!isGtfsJpV4TableName(tableName)) {
+      throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
+    }
+
+    return (await readTypedGtfsSourceRows(this.#session, tableName, options)) as Array<SourceReadRow<TName, TColumns>>;
+  }
+
   async readRows(tableName: string, options: TableReadOptions = {}): Promise<GtfsRow[]> {
-    assertIdentifier(tableName);
-
-    const orderByClause = buildOrderByClause(options.orderBy);
-    const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
-
-    const sql = `SELECT * FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
-    return await this.#session.execRows<GtfsRow>(sql, bind);
+    return await readRowsFromSession(this.#session, tableName, options);
   }
 
   async loadTables(

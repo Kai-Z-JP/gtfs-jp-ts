@@ -1,4 +1,4 @@
-import type { SqlBindMap } from "../types.js";
+import type {SqlBindMap} from "../types.js";
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -30,6 +30,14 @@ export const buildOrderByClause = (orderBy?: string | readonly string[]): string
   }
 
   return ` ORDER BY ${columns.map((column) => quoteIdentifier(column)).join(", ")}`;
+};
+
+export const buildSelectClause = (columns?: readonly string[]): string => {
+  if (!columns || columns.length === 0) {
+    return "SELECT *";
+  }
+
+  return `SELECT ${columns.map((column) => quoteIdentifier(column)).join(", ")}`;
 };
 
 export const buildLimitOffsetClause = (options: {

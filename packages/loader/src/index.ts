@@ -40,4 +40,7 @@ export type {
   GtfsSchemaTableName,
   GtfsSchemaTableRow,
   MaterializationSource,
+  SourceReadColumns,
+  SourceReadOptions,
+  SourceReadRow,
 } from "./schema-types.js";
