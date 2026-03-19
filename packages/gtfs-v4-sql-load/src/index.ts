@@ -1,6 +1,5 @@
 import * as sqliteWasmModule from "@sqlite.org/sqlite-wasm";
 import JSZip from "jszip";
-import Papa from "papaparse";
 import {
   GTFS_V4_TABLE_NAMES,
   isGtfsV4TableName,
@@ -34,8 +33,8 @@ export interface CloseOptions {
 }
 
 export interface ImportGtfsZipOptions {
-  parseConcurrency?: number;
-  writeConcurrency?: number;
+  parseWorkerConcurrency?: number;
+  dbWriteConcurrency?: number;
   opfsImportMode?: "memory-stage" | "direct";
   onStatus?: (message: string) => void;
 }
@@ -85,6 +84,28 @@ type WriteImportResult = {
   tablesImported: number;
   rowsImported: number;
 };
+
+type ParseWorkerRequest = {
+  type: "parse";
+  requestId: number;
+  fileName: string;
+  tableName: string;
+  bytes: ArrayBuffer;
+};
+
+type ParseWorkerParsedResponse = {
+  type: "parsed";
+  requestId: number;
+  parsedTable: ParsedTable;
+};
+
+type ParseWorkerErrorResponse = {
+  type: "error";
+  requestId: number;
+  error: string;
+};
+
+type ParseWorkerResponse = ParseWorkerParsedResponse | ParseWorkerErrorResponse;
 
 type OpfsImportPragmaSnapshot = {
   synchronous: number;
@@ -231,6 +252,156 @@ const createPromiser = async (worker?: Worker): Promise<SqlitePromiser> =>
       onready: () => resolve(promiser),
     }) as unknown as SqlitePromiser;
   });
+
+class AsyncQueue<T> {
+  #items: T[] = [];
+  #waiters: Array<{
+    resolve: (value: T | undefined) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
+  #closed = false;
+  #failed = false;
+  #failureReason: unknown;
+
+  push(item: T): void {
+    if (this.#closed) {
+      throw new Error("Queue is closed");
+    }
+
+    const waiter = this.#waiters.shift();
+    if (waiter) {
+      waiter.resolve(item);
+      return;
+    }
+
+    this.#items.push(item);
+  }
+
+  close(): void {
+    if (this.#closed) {
+      return;
+    }
+
+    this.#closed = true;
+    for (const waiter of this.#waiters) {
+      waiter.resolve(undefined);
+    }
+    this.#waiters = [];
+  }
+
+  fail(reason: unknown): void {
+    if (this.#closed) {
+      return;
+    }
+
+    this.#closed = true;
+    this.#failed = true;
+    this.#failureReason = reason;
+    this.#items = [];
+    for (const waiter of this.#waiters) {
+      waiter.reject(reason);
+    }
+    this.#waiters = [];
+  }
+
+  async shift(): Promise<T | undefined> {
+    if (this.#items.length > 0) {
+      return this.#items.shift();
+    }
+
+    if (this.#failed) {
+      throw this.#failureReason;
+    }
+
+    if (this.#closed) {
+      return undefined;
+    }
+
+    return await new Promise<T | undefined>((resolve, reject) => {
+      this.#waiters.push({ resolve, reject });
+    });
+  }
+}
+
+class ParseWorkerClient {
+  #worker: Worker;
+  #nextRequestId = 1;
+  #pending = new Map<
+    number,
+    {
+      resolve: (parsedTable: ParsedTable) => void;
+      reject: (reason?: unknown) => void;
+    }
+  >();
+
+  constructor() {
+    this.#worker = new Worker(new URL("./parse-worker.js", import.meta.url), {
+      type: "module",
+    });
+    this.#worker.addEventListener("message", this.#handleMessage);
+    this.#worker.addEventListener("error", this.#handleError);
+    this.#worker.addEventListener("messageerror", this.#handleError);
+  }
+
+  async parse(
+    fileName: string,
+    tableName: string,
+    bytes: Uint8Array,
+  ): Promise<ParsedTable> {
+    const requestId = this.#nextRequestId;
+    this.#nextRequestId += 1;
+
+    const requestBytes = new Uint8Array(bytes.byteLength);
+    requestBytes.set(bytes);
+
+    const byteBuffer = requestBytes.buffer;
+    return await new Promise<ParsedTable>((resolve, reject) => {
+      this.#pending.set(requestId, { resolve, reject });
+      const payload: ParseWorkerRequest = {
+        type: "parse",
+        requestId,
+        fileName,
+        tableName,
+        bytes: byteBuffer,
+      };
+      this.#worker.postMessage(payload, [byteBuffer]);
+    });
+  }
+
+  terminate(): void {
+    for (const pending of this.#pending.values()) {
+      pending.reject(new Error("Parse worker terminated"));
+    }
+    this.#pending.clear();
+    this.#worker.removeEventListener("message", this.#handleMessage);
+    this.#worker.removeEventListener("error", this.#handleError);
+    this.#worker.removeEventListener("messageerror", this.#handleError);
+    this.#worker.terminate();
+  }
+
+  #handleMessage = (event: MessageEvent<ParseWorkerResponse>): void => {
+    const response = event.data;
+    const pending = this.#pending.get(response.requestId);
+    if (!pending) {
+      return;
+    }
+
+    this.#pending.delete(response.requestId);
+    if (response.type === "parsed") {
+      pending.resolve(response.parsedTable);
+      return;
+    }
+
+    pending.reject(new Error(response.error));
+  };
+
+  #handleError = (): void => {
+    for (const pending of this.#pending.values()) {
+      pending.reject(new Error("Parse worker failed"));
+    }
+    this.#pending.clear();
+  };
+}
 
 export class GtfsV4SqliteLoader {
   #mode: SqliteStorageMode;
@@ -414,43 +585,136 @@ export class GtfsV4SqliteLoader {
       throw new Error("No importable .txt files found in ZIP");
     }
 
-    const parseConcurrency = normalizeConcurrency(options.parseConcurrency, 8);
-    const parsedTables = await mapWithConcurrency(importTargets, parseConcurrency, async (target, index) => {
-      options.onStatus?.(`ZIP parse (${index + 1}/${importTargets.length}): ${target.fileName}`);
-      return await parseGtfsTxt(target);
-    });
-
-    const writeConcurrency =
-      options.writeConcurrency === undefined
+    const parseWorkerConcurrency = normalizeConcurrency(
+      options.parseWorkerConcurrency,
+      8,
+    );
+    const dbWriteConcurrency =
+      options.dbWriteConcurrency === undefined
         ? this.#mode === "opfs"
           ? 1
           : 4
-        : normalizeConcurrency(options.writeConcurrency, 4);
+        : normalizeConcurrency(options.dbWriteConcurrency, 4);
     const insertBatchSize = this.#mode === "opfs" ? 1000 : 250;
 
     let tablesImported = 0;
     let rowsImported = 0;
     let writeProgress = 0;
+    let nextParseIndex = 0;
+    let hasError = false;
+    let firstError: unknown;
+
+    const parsedQueue = new AsyncQueue<ParsedTable>();
+    const setFirstError = (error: unknown): void => {
+      if (hasError) {
+        return;
+      }
+
+      hasError = true;
+      firstError = error;
+      parsedQueue.fail(error);
+    };
 
     await this.#withImportWriteTuning(async () => {
       await this.exec(this.#mode === "opfs" ? "BEGIN IMMEDIATE;" : "BEGIN;");
       try {
-        const settledResults = await mapWithConcurrencySettled(parsedTables, writeConcurrency, async (parsedTable) => {
-          writeProgress += 1;
-          options.onStatus?.(`DB write (${writeProgress}/${parsedTables.length}): ${parsedTable.fileName}`);
-          return await writeParsedTable(this, parsedTable, skippedFiles, insertBatchSize);
-        });
+        const parseWorkers = Array.from(
+          {
+            length: Math.min(
+              Math.max(1, parseWorkerConcurrency),
+              importTargets.length,
+            ),
+          },
+          async () => {
+            const parseWorker = new ParseWorkerClient();
+            try {
+              while (true) {
+                if (hasError) {
+                  return;
+                }
 
-        const failed = settledResults.find((result) => result.status === "rejected");
-        if (failed && failed.status === "rejected") {
-          throw failed.reason;
+                const index = nextParseIndex;
+                nextParseIndex += 1;
+                if (index >= importTargets.length) {
+                  return;
+                }
+
+                const target = importTargets[index];
+                options.onStatus?.(
+                  `ZIP parse (${index + 1}/${importTargets.length}): ${target.fileName}`,
+                );
+                const bytes = await target.entry.async("uint8array");
+                const parsedTable = await parseWorker.parse(
+                  target.fileName,
+                  target.tableName,
+                  bytes,
+                );
+
+                if (hasError) {
+                  return;
+                }
+
+                parsedQueue.push(parsedTable);
+              }
+            } catch (error) {
+              setFirstError(error);
+            } finally {
+              parseWorker.terminate();
+            }
+          },
+        );
+
+        const writeWorkers = Array.from(
+          {
+            length: Math.min(Math.max(1, dbWriteConcurrency), importTargets.length),
+          },
+          async () => {
+            while (true) {
+              if (hasError) {
+                return;
+              }
+
+              let parsedTable: ParsedTable | undefined;
+              try {
+                parsedTable = await parsedQueue.shift();
+              } catch (error) {
+                setFirstError(error);
+                return;
+              }
+
+              if (!parsedTable) {
+                return;
+              }
+
+              try {
+                writeProgress += 1;
+                options.onStatus?.(
+                  `DB write (${writeProgress}/${importTargets.length}): ${parsedTable.fileName}`,
+                );
+                const result = await writeParsedTable(
+                  this,
+                  parsedTable,
+                  skippedFiles,
+                  insertBatchSize,
+                );
+                tablesImported += result.tablesImported;
+                rowsImported += result.rowsImported;
+              } catch (error) {
+                setFirstError(error);
+                return;
+              }
+            }
+          },
+        );
+
+        await Promise.all(parseWorkers);
+        if (!hasError) {
+          parsedQueue.close();
         }
 
-        for (const result of settledResults) {
-          if (result.status === "fulfilled") {
-            tablesImported += result.value.tablesImported;
-            rowsImported += result.value.rowsImported;
-          }
+        await Promise.all(writeWorkers);
+        if (hasError) {
+          throw firstError ?? new Error("Import failed");
         }
 
         await this.exec("COMMIT;");
@@ -752,41 +1016,6 @@ const toSafePragmaInt = (
   return normalized;
 };
 
-const parseGtfsTxt = async (target: ImportTarget): Promise<ParsedTable> => {
-  const csv = await target.entry.async("text");
-  const parsed = Papa.parse<string[]>(csv, {
-    header: false,
-    skipEmptyLines: "greedy",
-  });
-
-  if (parsed.errors.length > 0) {
-    const firstError = parsed.errors[0];
-    throw new Error(`${target.fileName}: CSV parse error at row ${firstError.row}: ${firstError.message}`);
-  }
-
-  const records = parsed.data;
-  if (records.length === 0) {
-    return {
-      fileName: target.fileName,
-      tableName: target.tableName,
-      headers: [],
-      dataRows: [],
-    };
-  }
-
-  const headers = records[0].map((value, index) => normalizeHeaderName(value, target.fileName, index));
-  if (new Set(headers).size !== headers.length) {
-    throw new Error(`${target.fileName}: duplicate columns found`);
-  }
-
-  return {
-    fileName: target.fileName,
-    tableName: target.tableName,
-    headers,
-    dataRows: records.slice(1).filter(hasNonEmptyCell),
-  };
-};
-
 const writeParsedTable = async (
   loader: GtfsV4SqliteLoader,
   parsedTable: ParsedTable,
@@ -833,62 +1062,6 @@ const writeParsedTable = async (
   };
 };
 
-const mapWithConcurrency = async <T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T, index: number) => Promise<R>,
-): Promise<R[]> => {
-  if (items.length === 0) {
-    return [];
-  }
-
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
-  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      results[index] = await mapper(items[index], index);
-    }
-  });
-
-  await Promise.all(workers);
-  return results;
-};
-
-const mapWithConcurrencySettled = async <T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T, index: number) => Promise<R>,
-): Promise<PromiseSettledResult<R>[]> => {
-  if (items.length === 0) {
-    return [];
-  }
-
-  const results = new Array<PromiseSettledResult<R>>(items.length);
-  let nextIndex = 0;
-  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      try {
-        results[index] = {
-          status: "fulfilled",
-          value: await mapper(items[index], index),
-        };
-      } catch (reason) {
-        results[index] = {
-          status: "rejected",
-          reason,
-        };
-      }
-    }
-  });
-
-  await Promise.all(workers);
-  return results;
-};
-
 const toTableName = (fileName: string): string | undefined => {
   const lower = fileName.toLowerCase();
   if (!lower.endsWith(".txt")) {
@@ -902,22 +1075,6 @@ const toTableName = (fileName: string): string | undefined => {
 
   return stem;
 };
-
-const normalizeHeaderName = (header: string, fileName: string, index: number): string => {
-  const cleaned = header.replace(/^\uFEFF/, "").trim();
-  if (!cleaned) {
-    throw new Error(`${fileName}: header[${index}] is empty`);
-  }
-
-  if (!SQL_IDENTIFIER_RE.test(cleaned)) {
-    throw new Error(`${fileName}: header[${index}] is not a valid SQL identifier: ${cleaned}`);
-  }
-
-  return cleaned;
-};
-
-const hasNonEmptyCell = (row: string[]): boolean =>
-  row.some((value) => value !== undefined && value.trim() !== "");
 
 const toSqlLiteral = (value: string | undefined): string => {
   if (value === undefined) {

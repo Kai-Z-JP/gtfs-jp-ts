@@ -17,6 +17,8 @@ const routes = await loader.readTable("routes", {
 console.log(routes);
 
 const importResult = await loader.importGtfsZip(file, {
+  parseWorkerConcurrency: 8,
+  dbWriteConcurrency: 4,
   opfsImportMode: "memory-stage",
   onStatus: (message) => console.log(message),
 });
@@ -34,6 +36,8 @@ await loader.close();
 - `clearDatabase` は DB 自体を削除して再作成します（`memory` は再初期化、`opfs` は `unlink` でファイル削除後に再作成）。
 - `readTable` / `readUnknownTable` は `limit` 未指定時、件数制限なしで読み込みます。
 - `importGtfsZip` は ZIP 解析・テーブル作成・データ投入を行います。
+- `importGtfsZip` は Parse と DB write をファイル単位でパイプライン実行します。
+- `parseWorkerConcurrency` は CSV 解析 Worker 数、`dbWriteConcurrency` は DB write 並列度です。
 - `storage: "opfs"` の `importGtfsZip` は既定で `opfsImportMode: "memory-stage"` を使い、`:memory:` DB に投入後、SQLiteファイル全体を OPFS に反映します（既存DBは全体置換）。
 - `opfsImportMode: "direct"` を指定すると、OPFSへ直接INSERTする従来経路を使えます。
 - OPFS 利用時は `COOP/COEP` などの配信ヘッダ要件に注意してください。

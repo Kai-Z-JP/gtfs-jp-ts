@@ -138,12 +138,15 @@ export default function App(): JSX.Element {
 
     setBusy(true);
     try {
+      const startedAt = performance.now();
       const result = await importGtfsZip(file, loaderRef.current, setStatusMessage);
+      const elapsedSeconds = (performance.now() - startedAt) / 1000;
+      const elapsedLabel = `${elapsedSeconds.toFixed(2)}s`;
       await refreshTables();
 
       const skipped = result.skippedFiles.length > 0 ? ` / skipped: ${result.skippedFiles.join(", ")}` : "";
-      setSummary(`ZIP import done: ${result.tablesImported} tables, ${result.rowsImported} rows${skipped}`);
-      setStatusMessage(`ZIP取込完了: ${result.tablesImported} tables`, "ok");
+      setSummary(`ZIP import done: ${result.tablesImported} tables, ${result.rowsImported} rows, ${elapsedLabel}${skipped}`);
+      setStatusMessage(`ZIP取込完了: ${result.tablesImported} tables (${elapsedLabel})`, "ok");
     } catch (error) {
       handleError(error, "ZIP取込に失敗しました", setStatusMessage);
     } finally {
