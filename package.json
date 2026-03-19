@@ -1,0 +1,15 @@
+{
+  "name": "hyperload",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @hyperload/gtfs-v4-struct && npm run build -w @hyperload/gtfs-v4-sql-load && npm run build -w @hyperload/gtfs-v4-frontend-sample",
+    "typecheck": "npm run typecheck -w @hyperload/gtfs-v4-struct && npm run typecheck -w @hyperload/gtfs-v4-sql-load && npm run typecheck -w @hyperload/gtfs-v4-frontend-sample"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

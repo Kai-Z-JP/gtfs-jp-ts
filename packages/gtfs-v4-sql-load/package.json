@@ -1,0 +1,29 @@
+{
+  "name": "@hyperload/gtfs-v4-sql-load",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hyperload/gtfs-v4-struct": "file:../gtfs-v4-struct",
+    "@sqlite.org/sqlite-wasm": "^3.51.2-build6"
+  },
+  "devDependencies": {
+    "jszip": "^3.10.1",
+    "papaparse": "^5.5.3",
+    "@types/papaparse": "^5.5.2",
+    "tsup": "^8.5.0"
+  }
+}
