@@ -9,8 +9,8 @@ GTFS v4 向けに、以下を分離した TypeScript ライブラリ構成です
 ## Setup
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm build
 ```
 
 ## Packages

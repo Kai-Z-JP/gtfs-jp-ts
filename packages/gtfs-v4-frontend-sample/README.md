@@ -5,9 +5,9 @@
 ## Run
 
 ```bash
-npm install
-npm run build
-npm run dev -w @hyperload/gtfs-v4-frontend-sample
+pnpm install
+pnpm build
+pnpm --filter @hyperload/gtfs-v4-frontend-sample dev
 ```
 
 ## What it does
