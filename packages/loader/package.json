@@ -1,17 +1,41 @@
 {
   "name": "@gtfs-jp/loader",
-  "version": "0.1.0",
+  "version": "4.0.0-beta.1",
+  "description": "Browser SQLite WASM loader for GTFS-JP v4 data (in-memory / OPFS)",
   "type": "module",
+  "license": "MIT",
+  "author": "Kai-Z-JP",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kai-Z-JP/HyperLoad.git",
+    "directory": "packages/loader"
+  },
+  "homepage": "https://github.com/Kai-Z-JP/HyperLoad/tree/main/packages/loader",
+  "keywords": [
+    "gtfs",
+    "gtfs-jp",
+    "sqlite",
+    "wasm",
+    "opfs",
+    "browser",
+    "loader",
+    "transit",
+    "japan"
+  ],
+  "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup --config tsup.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",

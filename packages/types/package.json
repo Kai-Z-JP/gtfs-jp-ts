@@ -1,18 +1,39 @@
 {
   "name": "@gtfs-jp/types",
-  "version": "0.1.0",
+  "version": "4.0.0-beta.1",
+  "description": "GTFS-JP v4 table schema and type definitions for TypeScript",
   "type": "module",
+  "license": "MIT",
+  "author": "Kai-Z-JP",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kai-Z-JP/HyperLoad.git",
+    "directory": "packages/types"
+  },
+  "homepage": "https://github.com/Kai-Z-JP/HyperLoad/tree/main/packages/types",
+  "keywords": [
+    "gtfs",
+    "gtfs-jp",
+    "typescript",
+    "types",
+    "schema",
+    "transit",
+    "japan"
+  ],
+  "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
