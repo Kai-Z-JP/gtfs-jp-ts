@@ -7,10 +7,10 @@
   "author": "Kai-Z-JP",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Kai-Z-JP/HyperLoad.git",
+    "url": "https://github.com/Kai-Z-JP/gtfs-jp-ts.git",
     "directory": "packages/types"
   },
-  "homepage": "https://github.com/Kai-Z-JP/HyperLoad/tree/main/packages/types",
+  "homepage": "https://github.com/Kai-Z-JP/gtfs-jp-ts/tree/main/packages/types",
   "keywords": [
     "gtfs",
     "gtfs-jp",
