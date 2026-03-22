@@ -57,6 +57,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Wait for npm propagation
+        run: sleep 10
+
       - name: Publish @gtfs-jp/loader
         run: pnpm --filter @gtfs-jp/loader publish --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
         env:
