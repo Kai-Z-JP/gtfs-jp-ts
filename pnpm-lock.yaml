@@ -15,14 +15,14 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4
 
-  packages/frontend-sample:
+  apps/demo:
     dependencies:
       '@gtfs-jp/loader':
         specifier: workspace:*
-        version: link:../loader
+        version: link:../../packages/loader
       '@gtfs-jp/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../packages/types
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@18.3.28)(react@18.3.1)
