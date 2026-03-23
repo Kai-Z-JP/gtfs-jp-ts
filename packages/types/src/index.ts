@@ -7,6 +7,18 @@ export {
 } from './schema.js';
 
 export {
+  gtfsDateToIsoString,
+  gtfsTimeToSeconds,
+  isValidGtfsDate,
+  isValidGtfsTime,
+  parseGtfsDate,
+  parseGtfsTime,
+  secondsToGtfsTime,
+  toGtfsDate,
+  type ParsedGtfsTime,
+} from './time-date.js';
+
+export {
   GTFS_JP_V4_FILE_NAMES,
   GTFS_JP_V4_TABLE_NAMES,
   getGtfsJpV4TableSchema,
