@@ -7,6 +7,13 @@ export {
 } from './schema.js';
 
 export {
+  buildServiceCalendarIndex,
+  type CalendarRow,
+  type CalendarDateRow,
+  type ServiceCalendarIndex,
+} from './calendar.js';
+
+export {
   gtfsDateToIsoString,
   gtfsTimeToSeconds,
   isValidGtfsDate,
