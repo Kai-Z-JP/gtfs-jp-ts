@@ -22,8 +22,8 @@ pnpm --filter demo dev
 
 - `http://localhost` または `https://` でアクセスする（Secure Context）
 - サーバーが次のヘッダーを返す
-    - `Cross-Origin-Opener-Policy: same-origin`
-    - `Cross-Origin-Embedder-Policy: require-corp`
+  - `Cross-Origin-Opener-Policy: same-origin`
+  - `Cross-Origin-Embedder-Policy: require-corp`
 
 Vite 設定では上記ヘッダーを `server` と `preview` に設定済みです。  
 別のリバースプロキシやホスティング経由の場合は、そのレイヤーでも同じヘッダーが必要です。

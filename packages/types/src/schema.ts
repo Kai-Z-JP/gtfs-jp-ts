@@ -1,22 +1,22 @@
 export type GtfsJpV4Requirement =
-  | "required"
-  | "conditional_required"
-  | "recommended"
-  | "optional"
-  | "conditional_forbidden";
+  | 'required'
+  | 'conditional_required'
+  | 'recommended'
+  | 'optional'
+  | 'conditional_forbidden';
 
 export type GtfsJpV4ColumnRequirement =
-  | "required"
-  | "conditional_required"
-  | "recommended"
-  | "optional"
-  | "conditional_forbidden"
-  | "not_used";
+  | 'required'
+  | 'conditional_required'
+  | 'recommended'
+  | 'optional'
+  | 'conditional_forbidden'
+  | 'not_used';
 
 export type GtfsJpV4ColumnSchema = {
   required?: true;
   requirement?: GtfsJpV4ColumnRequirement;
-  kind?: "string" | "number";
+  kind?: 'string' | 'number';
   values?: readonly (string | number)[];
 };
 
@@ -24,47 +24,52 @@ export type GtfsJpV4TableSchema = {
   fileName: string;
   tableName: string;
   requirement: GtfsJpV4Requirement;
-  format?: "txt" | "geojson";
+  format?: 'txt' | 'geojson';
   columns: Record<string, GtfsJpV4ColumnSchema>;
 };
 
-const s = () => ({ kind: "string", requirement: "optional" } as const);
-const rs = () => ({ kind: "string", required: true, requirement: "required" } as const);
-const cs = () => ({ kind: "string", requirement: "conditional_required" } as const);
-const cfs = () => ({ kind: "string", requirement: "conditional_forbidden" } as const);
-const recs = () => ({ kind: "string", requirement: "recommended" } as const);
-const nus = () => ({ kind: "string", requirement: "not_used" } as const);
-const n = () => ({ kind: "number", requirement: "optional" } as const);
-const rn = () => ({ kind: "number", required: true, requirement: "required" } as const);
-const cn = () => ({ kind: "number", requirement: "conditional_required" } as const);
-const e = <const T extends readonly (string | number)[]>(values: T) => ({
-  values,
-  requirement: "optional",
-} as const);
-const re = <const T extends readonly (string | number)[]>(values: T) => ({
-  values,
-  required: true,
-  requirement: "required",
-} as const);
-const ce = <const T extends readonly (string | number)[]>(values: T) => ({
-  values,
-  requirement: "conditional_required",
-} as const);
-const rece = <const T extends readonly (string | number)[]>(values: T) => ({
-  values,
-  requirement: "recommended",
-} as const);
-const cfe = <const T extends readonly (string | number)[]>(values: T) => ({
-  values,
-  requirement: "conditional_forbidden",
-} as const);
+const s = () => ({ kind: 'string', requirement: 'optional' }) as const;
+const rs = () => ({ kind: 'string', required: true, requirement: 'required' }) as const;
+const cs = () => ({ kind: 'string', requirement: 'conditional_required' }) as const;
+const cfs = () => ({ kind: 'string', requirement: 'conditional_forbidden' }) as const;
+const recs = () => ({ kind: 'string', requirement: 'recommended' }) as const;
+const nus = () => ({ kind: 'string', requirement: 'not_used' }) as const;
+const n = () => ({ kind: 'number', requirement: 'optional' }) as const;
+const rn = () => ({ kind: 'number', required: true, requirement: 'required' }) as const;
+const cn = () => ({ kind: 'number', requirement: 'conditional_required' }) as const;
+const e = <const T extends readonly (string | number)[]>(values: T) =>
+  ({
+    values,
+    requirement: 'optional',
+  }) as const;
+const re = <const T extends readonly (string | number)[]>(values: T) =>
+  ({
+    values,
+    required: true,
+    requirement: 'required',
+  }) as const;
+const ce = <const T extends readonly (string | number)[]>(values: T) =>
+  ({
+    values,
+    requirement: 'conditional_required',
+  }) as const;
+const rece = <const T extends readonly (string | number)[]>(values: T) =>
+  ({
+    values,
+    requirement: 'recommended',
+  }) as const;
+const cfe = <const T extends readonly (string | number)[]>(values: T) =>
+  ({
+    values,
+    requirement: 'conditional_forbidden',
+  }) as const;
 
 // Based on GTFS JP v4 draft specification (2025-10-01 draft release).
 export const GTFS_JP_V4_SCHEMA = [
   {
-    fileName: "feed_info.txt",
-    tableName: "feed_info",
-    requirement: "required",
+    fileName: 'feed_info.txt',
+    tableName: 'feed_info',
+    requirement: 'required',
     columns: {
       feed_publisher_name: rs(),
       feed_publisher_url: rs(),
@@ -78,9 +83,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "agency.txt",
-    tableName: "agency",
-    requirement: "required",
+    fileName: 'agency.txt',
+    tableName: 'agency',
+    requirement: 'required',
     columns: {
       agency_id: rs(),
       agency_name: rs(),
@@ -93,9 +98,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "stops.txt",
-    tableName: "stops",
-    requirement: "required",
+    fileName: 'stops.txt',
+    tableName: 'stops',
+    requirement: 'required',
     columns: {
       stop_id: rs(),
       stop_code: s(),
@@ -115,9 +120,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "routes.txt",
-    tableName: "routes",
-    requirement: "required",
+    fileName: 'routes.txt',
+    tableName: 'routes',
+    requirement: 'required',
     columns: {
       route_id: rs(),
       agency_id: rs(),
@@ -136,9 +141,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "trips.txt",
-    tableName: "trips",
-    requirement: "required",
+    fileName: 'trips.txt',
+    tableName: 'trips',
+    requirement: 'required',
     columns: {
       route_id: rs(),
       service_id: rs(),
@@ -158,9 +163,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "stop_times.txt",
-    tableName: "stop_times",
-    requirement: "required",
+    fileName: 'stop_times.txt',
+    tableName: 'stop_times',
+    requirement: 'required',
     columns: {
       trip_id: rs(),
       arrival_time: cs(),
@@ -183,9 +188,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "calendar.txt",
-    tableName: "calendar",
-    requirement: "required",
+    fileName: 'calendar.txt',
+    tableName: 'calendar',
+    requirement: 'required',
     columns: {
       service_id: rs(),
       monday: re([0, 1] as const),
@@ -200,9 +205,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "calendar_dates.txt",
-    tableName: "calendar_dates",
-    requirement: "conditional_required",
+    fileName: 'calendar_dates.txt',
+    tableName: 'calendar_dates',
+    requirement: 'conditional_required',
     columns: {
       service_id: rs(),
       date: rs(),
@@ -210,9 +215,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_attributes.txt",
-    tableName: "fare_attributes",
-    requirement: "required",
+    fileName: 'fare_attributes.txt',
+    tableName: 'fare_attributes',
+    requirement: 'required',
     columns: {
       fare_id: rs(),
       price: rn(),
@@ -225,9 +230,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_rules.txt",
-    tableName: "fare_rules",
-    requirement: "conditional_required",
+    fileName: 'fare_rules.txt',
+    tableName: 'fare_rules',
+    requirement: 'conditional_required',
     columns: {
       fare_id: rs(),
       route_id: s(),
@@ -237,9 +242,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "translations.txt",
-    tableName: "translations",
-    requirement: "required",
+    fileName: 'translations.txt',
+    tableName: 'translations',
+    requirement: 'required',
     columns: {
       table_name: rs(),
       field_name: rs(),
@@ -251,9 +256,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "shapes.txt",
-    tableName: "shapes",
-    requirement: "recommended",
+    fileName: 'shapes.txt',
+    tableName: 'shapes',
+    requirement: 'recommended',
     columns: {
       shape_id: rs(),
       shape_pt_lat: rn(),
@@ -263,9 +268,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "attributions.txt",
-    tableName: "attributions",
-    requirement: "recommended",
+    fileName: 'attributions.txt',
+    tableName: 'attributions',
+    requirement: 'recommended',
     columns: {
       attribution_id: s(),
       agency_id: s(),
@@ -281,9 +286,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "transfers.txt",
-    tableName: "transfers",
-    requirement: "recommended",
+    fileName: 'transfers.txt',
+    tableName: 'transfers',
+    requirement: 'recommended',
     columns: {
       from_stop_id: cs(),
       to_stop_id: cs(),
@@ -296,9 +301,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "frequencies.txt",
-    tableName: "frequencies",
-    requirement: "optional",
+    fileName: 'frequencies.txt',
+    tableName: 'frequencies',
+    requirement: 'optional',
     columns: {
       trip_id: rs(),
       start_time: rs(),
@@ -308,9 +313,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "pathways.txt",
-    tableName: "pathways",
-    requirement: "optional",
+    fileName: 'pathways.txt',
+    tableName: 'pathways',
+    requirement: 'optional',
     columns: {
       pathway_id: rs(),
       from_stop_id: rs(),
@@ -327,9 +332,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "levels.txt",
-    tableName: "levels",
-    requirement: "optional",
+    fileName: 'levels.txt',
+    tableName: 'levels',
+    requirement: 'optional',
     columns: {
       level_id: rs(),
       level_index: rn(),
@@ -337,34 +342,34 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "location_groups.txt",
-    tableName: "location_groups",
-    requirement: "optional",
+    fileName: 'location_groups.txt',
+    tableName: 'location_groups',
+    requirement: 'optional',
     columns: {
       location_group_id: rs(),
       location_group_name: s(),
     },
   },
   {
-    fileName: "location_group_stops.txt",
-    tableName: "location_group_stops",
-    requirement: "optional",
+    fileName: 'location_group_stops.txt',
+    tableName: 'location_group_stops',
+    requirement: 'optional',
     columns: {
       location_group_id: rs(),
       stop_id: rs(),
     },
   },
   {
-    fileName: "locations.geojson",
-    tableName: "locations_geojson",
-    requirement: "optional",
-    format: "geojson",
+    fileName: 'locations.geojson',
+    tableName: 'locations_geojson',
+    requirement: 'optional',
+    format: 'geojson',
     columns: {},
   },
   {
-    fileName: "booking_rules.txt",
-    tableName: "booking_rules",
-    requirement: "optional",
+    fileName: 'booking_rules.txt',
+    tableName: 'booking_rules',
+    requirement: 'optional',
     columns: {
       booking_rule_id: rs(),
       booking_type: re([0, 1, 2] as const),
@@ -384,9 +389,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "timeframes.txt",
-    tableName: "timeframes",
-    requirement: "optional",
+    fileName: 'timeframes.txt',
+    tableName: 'timeframes',
+    requirement: 'optional',
     columns: {
       timeframe_group_id: rs(),
       start_time: cs(),
@@ -395,9 +400,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "rider_categories.txt",
-    tableName: "rider_categories",
-    requirement: "optional",
+    fileName: 'rider_categories.txt',
+    tableName: 'rider_categories',
+    requirement: 'optional',
     columns: {
       rider_category_id: rs(),
       rider_category_name: rs(),
@@ -406,9 +411,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_media.txt",
-    tableName: "fare_media",
-    requirement: "optional",
+    fileName: 'fare_media.txt',
+    tableName: 'fare_media',
+    requirement: 'optional',
     columns: {
       fare_media_id: rs(),
       fare_media_name: s(),
@@ -416,9 +421,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_products.txt",
-    tableName: "fare_products",
-    requirement: "optional",
+    fileName: 'fare_products.txt',
+    tableName: 'fare_products',
+    requirement: 'optional',
     columns: {
       fare_product_id: rs(),
       fare_product_name: s(),
@@ -429,9 +434,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_leg_rules.txt",
-    tableName: "fare_leg_rules",
-    requirement: "optional",
+    fileName: 'fare_leg_rules.txt',
+    tableName: 'fare_leg_rules',
+    requirement: 'optional',
     columns: {
       leg_group_id: s(),
       network_id: s(),
@@ -444,9 +449,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_leg_join_rules.txt",
-    tableName: "fare_leg_join_rules",
-    requirement: "optional",
+    fileName: 'fare_leg_join_rules.txt',
+    tableName: 'fare_leg_join_rules',
+    requirement: 'optional',
     columns: {
       from_network_id: rs(),
       to_network_id: rs(),
@@ -455,9 +460,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "fare_transfer_rules.txt",
-    tableName: "fare_transfer_rules",
-    requirement: "optional",
+    fileName: 'fare_transfer_rules.txt',
+    tableName: 'fare_transfer_rules',
+    requirement: 'optional',
     columns: {
       from_leg_group_id: s(),
       to_leg_group_id: s(),
@@ -469,36 +474,36 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "areas.txt",
-    tableName: "areas",
-    requirement: "optional",
+    fileName: 'areas.txt',
+    tableName: 'areas',
+    requirement: 'optional',
     columns: {
       area_id: rs(),
       area_name: s(),
     },
   },
   {
-    fileName: "stop_areas.txt",
-    tableName: "stop_areas",
-    requirement: "optional",
+    fileName: 'stop_areas.txt',
+    tableName: 'stop_areas',
+    requirement: 'optional',
     columns: {
       area_id: rs(),
       stop_id: rs(),
     },
   },
   {
-    fileName: "networks.txt",
-    tableName: "networks",
-    requirement: "conditional_forbidden",
+    fileName: 'networks.txt',
+    tableName: 'networks',
+    requirement: 'conditional_forbidden',
     columns: {
       network_id: rs(),
       network_name: s(),
     },
   },
   {
-    fileName: "route_networks.txt",
-    tableName: "route_networks",
-    requirement: "conditional_forbidden",
+    fileName: 'route_networks.txt',
+    tableName: 'route_networks',
+    requirement: 'conditional_forbidden',
     columns: {
       network_id: rs(),
       route_id: rs(),
@@ -506,9 +511,9 @@ export const GTFS_JP_V4_SCHEMA = [
   },
   // Legacy GTFS-JP v3 extensions kept for backward compatibility.
   {
-    fileName: "agency_jp.txt",
-    tableName: "agency_jp",
-    requirement: "optional",
+    fileName: 'agency_jp.txt',
+    tableName: 'agency_jp',
+    requirement: 'optional',
     columns: {
       agency_id: rs(),
       agency_official_name: s(),
@@ -519,9 +524,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "office_jp.txt",
-    tableName: "office_jp",
-    requirement: "optional",
+    fileName: 'office_jp.txt',
+    tableName: 'office_jp',
+    requirement: 'optional',
     columns: {
       office_id: rs(),
       office_name: rs(),
@@ -530,9 +535,9 @@ export const GTFS_JP_V4_SCHEMA = [
     },
   },
   {
-    fileName: "pattern_jp.txt",
-    tableName: "pattern_jp",
-    requirement: "optional",
+    fileName: 'pattern_jp.txt',
+    tableName: 'pattern_jp',
+    requirement: 'optional',
     columns: {
       jp_pattern_id: rs(),
       route_update_date: s(),

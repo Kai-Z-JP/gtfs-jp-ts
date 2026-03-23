@@ -1,15 +1,21 @@
-import {useEffect, useMemo, useRef} from "react";
-import {Database, FileArchive, X} from "lucide-react";
+import { useEffect, useMemo, useRef } from 'react';
+import { Database, FileArchive, X } from 'lucide-react';
 
-import type {ImportProgressState, OpfsSupport} from "../../domain/gtfsWorkbench";
-import type {SqliteStorageMode} from "@gtfs-jp/loader";
+import type { ImportProgressState, OpfsSupport } from '../../domain/gtfsWorkbench';
+import type { SqliteStorageMode } from '@gtfs-jp/loader';
 
-import {Button} from "../../components/ui/button";
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "../../components/ui/card";
-import {Input} from "../../components/ui/input";
-import {Label} from "../../components/ui/label";
-import {cn} from "../../lib/utils";
-import {TableProgressCardView} from "./TableProgressCardView";
+import { Button } from '../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { cn } from '../../lib/utils';
+import { TableProgressCardView } from './TableProgressCardView';
 
 type WorkflowPanelProps = {
   storage: SqliteStorageMode;
@@ -30,34 +36,34 @@ type WorkflowPanelProps = {
 };
 
 export function WorkflowPanel({
-                                storage,
-                                derivedTablesEnabled,
-                                opfsSupport,
-                                statusMessage,
-                                busy,
-                                isOpen,
-                                fileInputResetToken,
-                                importProgress,
-                                onStorageChange,
-                                onDerivedTablesEnabledChange,
-                                onOpen,
-                                onImportZip,
-                                onRefreshTables,
-                                onClearDb,
-                                onClose,
-                              }: WorkflowPanelProps): JSX.Element {
+  storage,
+  derivedTablesEnabled,
+  opfsSupport,
+  statusMessage,
+  busy,
+  isOpen,
+  fileInputResetToken,
+  importProgress,
+  onStorageChange,
+  onDerivedTablesEnabledChange,
+  onOpen,
+  onImportZip,
+  onRefreshTables,
+  onClearDb,
+  onClose,
+}: WorkflowPanelProps): JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   }, [fileInputResetToken]);
 
   const totalCards = importProgress.tableCards.length;
   const completedCards = useMemo(
     () =>
-      importProgress.tableCards.filter((card) => card.state === "done" || card.state === "skipped")
+      importProgress.tableCards.filter((card) => card.state === 'done' || card.state === 'skipped')
         .length,
     [importProgress.tableCards],
   );
@@ -75,7 +81,7 @@ export function WorkflowPanel({
       <Card className="border-black bg-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Database className="h-4 w-4"/>
+            <Database className="h-4 w-4" />
             Connection
           </CardTitle>
           <CardDescription>DB接続・ZIP投入・デモ投入</CardDescription>
@@ -95,8 +101,9 @@ export function WorkflowPanel({
                 opfs (file:...vfs=opfs)
               </option>
             </select>
-            {!opfsSupport.available &&
-                <p className="text-xs text-neutral-600">OPFS unavailable: {opfsSupport.reason}</p>}
+            {!opfsSupport.available && (
+              <p className="text-xs text-neutral-600">OPFS unavailable: {opfsSupport.reason}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -137,23 +144,38 @@ export function WorkflowPanel({
               disabled={busy || !isOpen}
               onClick={() => void onImportZip(fileInputRef.current?.files?.[0])}
             >
-              <FileArchive className="h-4 w-4"/>
+              <FileArchive className="h-4 w-4" />
               Import ZIP
             </Button>
-            <Button variant="outline" disabled={busy || !isOpen} onClick={() => void onRefreshTables()}>
+            <Button
+              variant="outline"
+              disabled={busy || !isOpen}
+              onClick={() => void onRefreshTables()}
+            >
               List Tables
             </Button>
             <Button variant="outline" disabled={busy || !isOpen} onClick={() => void onClearDb()}>
               Clear DB
             </Button>
-            <Button variant="ghost" className="col-span-2" disabled={busy || !isOpen} onClick={() => void onClose()}>
-              <X className="h-4 w-4"/>
+            <Button
+              variant="ghost"
+              className="col-span-2"
+              disabled={busy || !isOpen}
+              onClick={() => void onClose()}
+            >
+              <X className="h-4 w-4" />
               Close DB
             </Button>
           </div>
 
           <p
-            className={cn("rounded-md border border-black bg-white px-3 py-2 text-sm", "text-black")}>{statusMessage}</p>
+            className={cn(
+              'rounded-md border border-black bg-white px-3 py-2 text-sm',
+              'text-black',
+            )}
+          >
+            {statusMessage}
+          </p>
         </CardContent>
       </Card>
 
@@ -164,7 +186,9 @@ export function WorkflowPanel({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-700">Import Progress</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
+              Import Progress
+            </p>
             <p className="text-xs font-medium text-neutral-700">
               {completedCards}/{totalCards} ({overallProgressPercent}%)
             </p>
@@ -172,7 +196,7 @@ export function WorkflowPanel({
           <div className="h-2 rounded-full border border-black bg-white">
             <div
               className="h-full rounded-full bg-black transition-[width] duration-200"
-              style={{width: `${overallProgressPercent}%`}}
+              style={{ width: `${overallProgressPercent}%` }}
             />
           </div>
           <div>
@@ -183,7 +207,7 @@ export function WorkflowPanel({
             ) : (
               <div className="grid gap-2 overflow-auto pr-1 sm:grid-cols-2">
                 {importProgress.tableCards.map((card) => (
-                  <TableProgressCardView key={card.name} card={card}/>
+                  <TableProgressCardView key={card.name} card={card} />
                 ))}
               </div>
             )}

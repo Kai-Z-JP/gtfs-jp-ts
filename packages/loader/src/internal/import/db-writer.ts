@@ -1,5 +1,5 @@
-import { quoteIdentifier, toSqlLiteral } from "../sql.js";
-import { SqliteSession } from "../session.js";
+import { quoteIdentifier, toSqlLiteral } from '../sql.js';
+import { SqliteSession } from '../session.js';
 
 export type WriteChunkInput = {
   fileName: string;
@@ -22,7 +22,7 @@ const createTable = async (
   headers: string[],
 ): Promise<void> => {
   await session.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)};`);
-  const columnsSql = headers.map((header) => `${quoteIdentifier(header)} TEXT`).join(", ");
+  const columnsSql = headers.map((header) => `${quoteIdentifier(header)} TEXT`).join(', ');
   await session.exec(`CREATE TABLE ${quoteIdentifier(tableName)} (${columnsSql});`);
 };
 
@@ -36,13 +36,13 @@ const insertBatch = async (
     return;
   }
 
-  const quotedHeaders = headers.map(quoteIdentifier).join(", ");
+  const quotedHeaders = headers.map(quoteIdentifier).join(', ');
   const valuesSql = rows
     .map((row) => {
       const cells = headers.map((_, index) => toSqlLiteral(row[index]));
-      return `(${cells.join(", ")})`;
+      return `(${cells.join(', ')})`;
     })
-    .join(", ");
+    .join(', ');
 
   await session.exec(
     `INSERT INTO ${quoteIdentifier(tableName)} (${quotedHeaders}) VALUES ${valuesSql};`,

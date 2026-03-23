@@ -1,14 +1,14 @@
-import {defineConfig} from "tsup";
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/parse-worker.ts", "src/vite.ts"],
-  format: ["esm"],
-  platform: "browser",
+  entry: ['src/index.ts', 'src/parse-worker.ts', 'src/vite.ts'],
+  format: ['esm'],
+  platform: 'browser',
   dts: true,
   sourcemap: true,
   clean: true,
-  outDir: "dist",
+  outDir: 'dist',
   skipNodeModulesBundle: true,
   noExternal: [/^(udsv|jszip)(\/.*)?$/],
-  external: ["@sqlite.org/sqlite-wasm", "@gtfs-jp/types"],
+  external: ['@sqlite.org/sqlite-wasm', '@gtfs-jp/types'],
 });

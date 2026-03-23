@@ -1,5 +1,5 @@
 export type ParseWorkerRequest = {
-  type: "parse";
+  type: 'parse';
   requestId: number;
   fileName: string;
   tableName: string;
@@ -8,26 +8,26 @@ export type ParseWorkerRequest = {
 };
 
 export type ParseWorkerStartResponse = {
-  type: "start";
+  type: 'start';
   requestId: number;
   headers: string[];
 };
 
 export type ParseWorkerChunkResponse = {
-  type: "chunk";
+  type: 'chunk';
   requestId: number;
   chunkIndex: number;
   rows: string[][];
 };
 
 export type ParseWorkerDoneResponse = {
-  type: "done";
+  type: 'done';
   requestId: number;
   parsedRows: number;
 };
 
 export type ParseWorkerErrorResponse = {
-  type: "error";
+  type: 'error';
   requestId: number;
   error: string;
 };

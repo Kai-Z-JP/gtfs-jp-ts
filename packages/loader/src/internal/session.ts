@@ -1,9 +1,9 @@
-import type { GtfsRow } from "@gtfs-jp/types";
+import type { GtfsRow } from '@gtfs-jp/types';
 
-import type { SqlBindMap, SqlBindValue, SqliteStorageMode } from "../types.js";
-import { normalizeBind } from "./sql.js";
-import { createPromiser, type SqlitePromiser } from "./sqlite-worker.js";
-import { resolveFilename } from "./storage.js";
+import type { SqlBindMap, SqlBindValue, SqliteStorageMode } from '../types.js';
+import { normalizeBind } from './sql.js';
+import { createPromiser, type SqlitePromiser } from './sqlite-worker.js';
+import { resolveFilename } from './storage.js';
 
 type ExecResult<T> = {
   resultRows?: T[];
@@ -16,11 +16,7 @@ export class SqliteSession {
   #promiser?: SqlitePromiser;
   #dbId?: string | number;
 
-  constructor(options: {
-    mode: SqliteStorageMode;
-    filename?: string;
-    worker?: Worker;
-  }) {
+  constructor(options: { mode: SqliteStorageMode; filename?: string; worker?: Worker }) {
     this.#mode = options.mode;
     this.#filename = options.filename;
     this.#worker = options.worker;
@@ -45,13 +41,12 @@ export class SqliteSession {
 
     this.#promiser = await createPromiser(this.#worker);
     const filename = resolveFilename(this.#mode, this.#filename);
-    const response = await this.#promiser("open", { filename });
+    const response = await this.#promiser('open', { filename });
     const dbId =
-      response.dbId ??
-      (response.result as Record<string, string | number> | undefined)?.dbId;
+      response.dbId ?? (response.result as Record<string, string | number> | undefined)?.dbId;
 
     if (dbId === undefined) {
-      throw new Error("Failed to open sqlite database: dbId not returned");
+      throw new Error('Failed to open sqlite database: dbId not returned');
     }
 
     this.#dbId = dbId;
@@ -62,7 +57,7 @@ export class SqliteSession {
       return;
     }
 
-    await this.#promiser("close", {
+    await this.#promiser('close', {
       dbId: this.#dbId,
       unlink: options.unlink ?? false,
     });
@@ -72,7 +67,7 @@ export class SqliteSession {
 
   async exec(sql: string, bind: SqlBindMap = {}): Promise<void> {
     this.#ensureOpen();
-    await this.#promiser!("exec", {
+    await this.#promiser!('exec', {
       dbId: this.#dbId,
       sql,
       bind: normalizeBind(bind),
@@ -85,11 +80,11 @@ export class SqliteSession {
   ): Promise<T[]> {
     this.#ensureOpen();
 
-    const response = await this.#promiser!("exec", {
+    const response = await this.#promiser!('exec', {
       dbId: this.#dbId,
       sql,
       bind: normalizeBind(bind),
-      rowMode: "object",
+      rowMode: 'object',
       resultRows: [],
     });
 
@@ -100,7 +95,7 @@ export class SqliteSession {
   async exportBytes(): Promise<Uint8Array> {
     this.#ensureOpen();
 
-    const response = await this.#promiser!("export", {
+    const response = await this.#promiser!('export', {
       dbId: this.#dbId,
     });
 
@@ -121,12 +116,12 @@ export class SqliteSession {
       );
     }
 
-    throw new Error("Worker export did not return a valid byte array");
+    throw new Error('Worker export did not return a valid byte array');
   }
 
   #ensureOpen(): void {
     if (!this.#promiser || this.#dbId === undefined) {
-      throw new Error("SQLite database is not opened. Call open() first.");
+      throw new Error('SQLite database is not opened. Call open() first.');
     }
   }
 }

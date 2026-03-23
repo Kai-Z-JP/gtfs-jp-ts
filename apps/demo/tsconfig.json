@@ -7,13 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": [
-      "vite/client"
-    ]
+    "types": ["vite/client"]
   },
-  "include": [
-    "vite.config.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ]
+  "include": ["vite.config.ts", "src/**/*.ts", "src/**/*.tsx"]
 }

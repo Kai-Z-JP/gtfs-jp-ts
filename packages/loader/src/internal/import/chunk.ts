@@ -1,5 +1,5 @@
-import type { WriteChunkInput } from "./db-writer.js";
-import type { MaterializationTableMetric } from "../materialization.js";
+import type { WriteChunkInput } from './db-writer.js';
+import type { MaterializationTableMetric } from '../materialization.js';
 
 export type QueuedChunk = WriteChunkInput & {
   chunkIndex: number;

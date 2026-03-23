@@ -1,10 +1,10 @@
-import type {ImportProgressEvent} from "@gtfs-jp/loader";
+import type { ImportProgressEvent } from '@gtfs-jp/loader';
 
-import type {ImportProgressState} from "./types";
+import type { ImportProgressState } from './types';
 
 export function createInitialImportProgress(): ImportProgressState {
   return {
-    phase: "idle",
+    phase: 'idle',
     tableCards: [],
   };
 }
@@ -14,19 +14,19 @@ export function reduceImportProgressState(
   event: ImportProgressEvent,
 ): ImportProgressState {
   switch (event.phase) {
-    case "prepare": {
+    case 'prepare': {
       const nextCards = (event.targets ?? []).map((target) => ({
         name: target.targetName,
-        state: "queued" as const,
+        state: 'queued' as const,
       }));
       return {
         ...current,
-        phase: "prepare",
+        phase: 'prepare',
         tableCards: nextCards,
       };
     }
-    case "import":
-    case "derive": {
+    case 'import':
+    case 'derive': {
       if (!event.targetName || !event.state) {
         return {
           ...current,
@@ -60,15 +60,15 @@ export function reduceImportProgressState(
         tableCards: nextCards,
       };
     }
-    case "done":
+    case 'done':
       return {
         ...current,
-        phase: "done",
+        phase: 'done',
       };
-    case "error":
+    case 'error':
       return {
         ...current,
-        phase: "error",
+        phase: 'error',
       };
     default:
       return current;

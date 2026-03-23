@@ -1,7 +1,4 @@
-import type {
-  ParseWorkerRequest,
-  ParseWorkerResponse,
-} from "./protocol.js";
+import type { ParseWorkerRequest, ParseWorkerResponse } from './protocol.js';
 
 type ParseCallbacks = {
   onStart: (headers: string[]) => void;
@@ -20,12 +17,12 @@ export class ParseWorkerClient {
   #pending = new Map<number, PendingRequest>();
 
   constructor() {
-    this.#worker = new Worker(new URL("./parse-worker.js", import.meta.url), {
-      type: "module",
+    this.#worker = new Worker(new URL('./parse-worker.js', import.meta.url), {
+      type: 'module',
     });
-    this.#worker.addEventListener("message", this.#handleMessage);
-    this.#worker.addEventListener("error", this.#handleError);
-    this.#worker.addEventListener("messageerror", this.#handleError);
+    this.#worker.addEventListener('message', this.#handleMessage);
+    this.#worker.addEventListener('error', this.#handleError);
+    this.#worker.addEventListener('messageerror', this.#handleError);
   }
 
   async parse(
@@ -50,7 +47,7 @@ export class ParseWorkerClient {
       });
 
       const payload: ParseWorkerRequest = {
-        type: "parse",
+        type: 'parse',
         requestId,
         fileName,
         tableName,
@@ -63,12 +60,12 @@ export class ParseWorkerClient {
 
   terminate(): void {
     for (const pending of this.#pending.values()) {
-      pending.reject(new Error("Parse worker terminated"));
+      pending.reject(new Error('Parse worker terminated'));
     }
     this.#pending.clear();
-    this.#worker.removeEventListener("message", this.#handleMessage);
-    this.#worker.removeEventListener("error", this.#handleError);
-    this.#worker.removeEventListener("messageerror", this.#handleError);
+    this.#worker.removeEventListener('message', this.#handleMessage);
+    this.#worker.removeEventListener('error', this.#handleError);
+    this.#worker.removeEventListener('messageerror', this.#handleError);
     this.#worker.terminate();
   }
 
@@ -79,19 +76,19 @@ export class ParseWorkerClient {
       return;
     }
 
-    if (response.type === "error") {
+    if (response.type === 'error') {
       this.#pending.delete(response.requestId);
       pending.reject(new Error(response.error));
       return;
     }
 
     try {
-      if (response.type === "start") {
+      if (response.type === 'start') {
         pending.onStart(response.headers);
         return;
       }
 
-      if (response.type === "chunk") {
+      if (response.type === 'chunk') {
         pending.onChunk(response.chunkIndex, response.rows);
         return;
       }
@@ -107,7 +104,7 @@ export class ParseWorkerClient {
 
   #handleError = (): void => {
     for (const pending of this.#pending.values()) {
-      pending.reject(new Error("Parse worker failed"));
+      pending.reject(new Error('Parse worker failed'));
     }
     this.#pending.clear();
   };

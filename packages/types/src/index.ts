@@ -4,7 +4,7 @@ export {
   type GtfsJpV4ColumnSchema,
   type GtfsJpV4Requirement,
   type GtfsJpV4TableSchema,
-} from "./schema.js";
+} from './schema.js';
 
 export {
   GTFS_JP_V4_FILE_NAMES,
@@ -15,7 +15,7 @@ export {
   isGtfsJpV4TableName,
   resolveGtfsJpV4FileNameFromTableName,
   resolveGtfsJpV4TableNameFromFileName,
-} from "./helpers.js";
+} from './helpers.js';
 
 export type {
   BinaryFlag,
@@ -42,4 +42,4 @@ export type {
   GtfsJpV4TableRow,
   GtfsJpV4TypedRows,
   RowFromColumns,
-} from "./types.js";
+} from './types.js';

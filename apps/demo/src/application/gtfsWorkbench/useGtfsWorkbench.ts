@@ -1,7 +1,7 @@
-import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 
-import type {GtfsRow} from "@gtfs-jp/types";
-import type {ImportProgressEvent, SqliteStorageMode} from "@gtfs-jp/loader";
+import type { GtfsRow } from '@gtfs-jp/types';
+import type { ImportProgressEvent, SqliteStorageMode } from '@gtfs-jp/loader';
 
 import {
   createInitialImportProgress,
@@ -11,8 +11,12 @@ import {
   type OpfsSupport,
   type StatusMessage,
   type StatusType,
-} from "../../domain/gtfsWorkbench";
-import {detectOpfsSupport, GtfsLoaderAdapter, type GtfsLoaderPort} from "../../infrastructure/gtfsLoader";
+} from '../../domain/gtfsWorkbench';
+import {
+  detectOpfsSupport,
+  GtfsLoaderAdapter,
+  type GtfsLoaderPort,
+} from '../../infrastructure/gtfsLoader';
 
 export type WorkbenchState = {
   storage: SqliteStorageMode;
@@ -31,20 +35,20 @@ export type WorkbenchState = {
 };
 
 export type WorkbenchAction =
-  | { type: "set-storage"; storage: SqliteStorageMode }
-  | { type: "set-derived-tables-enabled"; enabled: boolean }
-  | { type: "set-selected-table"; selectedTable: string }
-  | { type: "set-limit"; limit: string }
-  | { type: "set-busy"; busy: boolean }
-  | { type: "set-status"; status: StatusMessage }
-  | { type: "set-summary"; summary: string }
-  | { type: "set-rows"; rows: GtfsRow[] }
-  | { type: "sync-tables"; tableNames: string[] }
-  | { type: "set-import-progress"; importProgress: ImportProgressState }
-  | { type: "apply-import-progress"; event: ImportProgressEvent }
-  | { type: "connection-opened" }
-  | { type: "connection-closed" }
-  | { type: "increment-file-input-reset-token" };
+  | { type: 'set-storage'; storage: SqliteStorageMode }
+  | { type: 'set-derived-tables-enabled'; enabled: boolean }
+  | { type: 'set-selected-table'; selectedTable: string }
+  | { type: 'set-limit'; limit: string }
+  | { type: 'set-busy'; busy: boolean }
+  | { type: 'set-status'; status: StatusMessage }
+  | { type: 'set-summary'; summary: string }
+  | { type: 'set-rows'; rows: GtfsRow[] }
+  | { type: 'sync-tables'; tableNames: string[] }
+  | { type: 'set-import-progress'; importProgress: ImportProgressState }
+  | { type: 'apply-import-progress'; event: ImportProgressEvent }
+  | { type: 'connection-opened' }
+  | { type: 'connection-closed' }
+  | { type: 'increment-file-input-reset-token' };
 
 export type WorkbenchActions = {
   setStorage: (storage: SqliteStorageMode) => void;
@@ -60,17 +64,17 @@ export type WorkbenchActions = {
 };
 
 const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState => ({
-  storage: "memory",
+  storage: 'memory',
   derivedTablesEnabled: true,
   status: {
-    type: "warn",
-    message: "DB未接続",
+    type: 'warn',
+    message: 'DB未接続',
   },
-  summary: "テーブル一覧を取得してください",
+  summary: 'テーブル一覧を取得してください',
   tableNames: [],
-  selectedTable: "",
+  selectedTable: '',
   rows: [],
-  limit: "50",
+  limit: '50',
   busy: false,
   importProgress: createInitialImportProgress(),
   opfsSupport,
@@ -80,52 +84,53 @@ const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState =
 
 const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): WorkbenchState => {
   switch (action.type) {
-    case "set-storage":
+    case 'set-storage':
       return {
         ...state,
-        storage: action.storage === "opfs" && !state.opfsSupport.available ? "memory" : action.storage,
+        storage:
+          action.storage === 'opfs' && !state.opfsSupport.available ? 'memory' : action.storage,
       };
-    case "set-derived-tables-enabled":
+    case 'set-derived-tables-enabled':
       return {
         ...state,
         derivedTablesEnabled: action.enabled,
       };
-    case "set-selected-table":
+    case 'set-selected-table':
       return {
         ...state,
         selectedTable: action.selectedTable,
       };
-    case "set-limit":
+    case 'set-limit':
       return {
         ...state,
         limit: action.limit,
       };
-    case "set-busy":
+    case 'set-busy':
       return {
         ...state,
         busy: action.busy,
       };
-    case "set-status":
+    case 'set-status':
       return {
         ...state,
         status: action.status,
       };
-    case "set-summary":
+    case 'set-summary':
       return {
         ...state,
         summary: action.summary,
       };
-    case "set-rows":
+    case 'set-rows':
       return {
         ...state,
         rows: action.rows,
       };
-    case "sync-tables": {
+    case 'sync-tables': {
       if (action.tableNames.length === 0) {
         return {
           ...state,
           tableNames: action.tableNames,
-          selectedTable: "",
+          selectedTable: '',
           rows: [],
         };
       }
@@ -139,36 +144,36 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
             : action.tableNames[0],
       };
     }
-    case "set-import-progress":
+    case 'set-import-progress':
       return {
         ...state,
         importProgress: action.importProgress,
       };
-    case "apply-import-progress":
+    case 'apply-import-progress':
       return {
         ...state,
         importProgress: reduceImportProgressState(state.importProgress, action.event),
       };
-    case "connection-opened":
+    case 'connection-opened':
       return {
         ...state,
         isOpen: true,
-        summary: "接続済み。GTFS ZIP投入、またはテーブル一覧取得を実行してください。",
+        summary: '接続済み。GTFS ZIP投入、またはテーブル一覧取得を実行してください。',
         tableNames: [],
-        selectedTable: "",
+        selectedTable: '',
         rows: [],
       };
-    case "connection-closed":
+    case 'connection-closed':
       return {
         ...state,
         isOpen: false,
-        summary: "DB未接続",
+        summary: 'DB未接続',
         tableNames: [],
-        selectedTable: "",
+        selectedTable: '',
         rows: [],
         fileInputResetToken: state.fileInputResetToken + 1,
       };
-    case "increment-file-input-reset-token":
+    case 'increment-file-input-reset-token':
       return {
         ...state,
         fileInputResetToken: state.fileInputResetToken + 1,
@@ -184,7 +189,7 @@ const handleError = (
   setStatusMessage: (message: string, type: StatusType) => void,
 ): void => {
   const message = error instanceof Error ? error.message : String(error);
-  setStatusMessage(`${prefix}: ${message}`, "error");
+  setStatusMessage(`${prefix}: ${message}`, 'error');
 };
 
 export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchActions } {
@@ -194,11 +199,11 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
   const loaderRef = useRef<GtfsLoaderPort | undefined>(undefined);
 
   const setStatusMessage = useCallback((message: string, type: StatusType) => {
-    dispatch({type: "set-status", status: {message, type}});
+    dispatch({ type: 'set-status', status: { message, type } });
   }, []);
 
   const setDerivedTablesEnabled = useCallback((enabled: boolean) => {
-    dispatch({type: "set-derived-tables-enabled", enabled});
+    dispatch({ type: 'set-derived-tables-enabled', enabled });
     loaderRef.current?.setDerivedTablesEnabled(enabled);
   }, []);
 
@@ -223,21 +228,24 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
     }
 
     const names = await loaderRef.current.listAllTables();
-    dispatch({type: "sync-tables", tableNames: names});
+    dispatch({ type: 'sync-tables', tableNames: names });
 
     if (names.length === 0) {
-      dispatch({type: "set-summary", summary: "テーブルが見つかりません"});
+      dispatch({ type: 'set-summary', summary: 'テーブルが見つかりません' });
       return;
     }
 
-    dispatch({type: "set-summary", summary: `${names.length} tables: ${names.join(", ")}`});
+    dispatch({ type: 'set-summary', summary: `${names.length} tables: ${names.join(', ')}` });
   }, []);
 
   const openDb = useCallback(async () => {
-    dispatch({type: "set-busy", busy: true});
+    dispatch({ type: 'set-busy', busy: true });
     try {
-      if (state.storage === "opfs" && !state.opfsSupport.available) {
-        setStatusMessage(`OPFSを利用できません: ${state.opfsSupport.reason ?? "環境未対応"}`, "warn");
+      if (state.storage === 'opfs' && !state.opfsSupport.available) {
+        setStatusMessage(
+          `OPFSを利用できません: ${state.opfsSupport.reason ?? '環境未対応'}`,
+          'warn',
+        );
         return;
       }
 
@@ -245,18 +253,21 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
 
       const nextLoader = new GtfsLoaderAdapter({
         storage: state.storage,
-        filename: "gtfs-jp-v4-sample.sqlite3",
+        filename: 'gtfs-jp-v4-sample.sqlite3',
       });
       nextLoader.setDerivedTablesEnabled(state.derivedTablesEnabled);
       await nextLoader.open();
       loaderRef.current = nextLoader;
 
-      dispatch({type: "connection-opened"});
-      setStatusMessage(`接続完了: ${state.storage} (${new Date().toLocaleTimeString("ja-JP")})`, "ok");
+      dispatch({ type: 'connection-opened' });
+      setStatusMessage(
+        `接続完了: ${state.storage} (${new Date().toLocaleTimeString('ja-JP')})`,
+        'ok',
+      );
     } catch (error) {
-      handleError(error, "DB接続に失敗しました", setStatusMessage);
+      handleError(error, 'DB接続に失敗しました', setStatusMessage);
     } finally {
-      dispatch({type: "set-busy", busy: false});
+      dispatch({ type: 'set-busy', busy: false });
     }
   }, [
     closeCurrentLoader,
@@ -268,13 +279,13 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
   ]);
 
   const closeDb = useCallback(async () => {
-    dispatch({type: "set-busy", busy: true});
+    dispatch({ type: 'set-busy', busy: true });
     try {
       await closeCurrentLoader();
-      dispatch({type: "connection-closed"});
-      setStatusMessage("DBをクローズしました", "ok");
+      dispatch({ type: 'connection-closed' });
+      setStatusMessage('DBをクローズしました', 'ok');
     } finally {
-      dispatch({type: "set-busy", busy: false});
+      dispatch({ type: 'set-busy', busy: false });
     }
   }, [closeCurrentLoader, setStatusMessage]);
 
@@ -285,23 +296,23 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
       }
 
       if (!file) {
-        setStatusMessage("GTFS ZIPファイルを選択してください", "warn");
+        setStatusMessage('GTFS ZIPファイルを選択してください', 'warn');
         return;
       }
 
-      dispatch({type: "set-busy", busy: true});
+      dispatch({ type: 'set-busy', busy: true });
       dispatch({
-        type: "set-import-progress",
+        type: 'set-import-progress',
         importProgress: {
           ...createInitialImportProgress(),
-          phase: "prepare",
+          phase: 'prepare',
         },
       });
 
       try {
         const startedAt = performance.now();
         const result = await loaderRef.current.importGtfsZip(file, (event) => {
-          dispatch({type: "apply-import-progress", event});
+          dispatch({ type: 'apply-import-progress', event });
         });
 
         const elapsedSeconds = (performance.now() - startedAt) / 1000;
@@ -309,23 +320,24 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
 
         await refreshTables();
 
-        const skipped = result.skippedFiles.length > 0 ? ` / skipped: ${result.skippedFiles.join(", ")}` : "";
+        const skipped =
+          result.skippedFiles.length > 0 ? ` / skipped: ${result.skippedFiles.join(', ')}` : '';
         const skippedDerived =
           result.skippedDerivedTables.length > 0
-            ? ` / skipped derived: ${result.skippedDerivedTables.join(", ")}`
-            : "";
+            ? ` / skipped derived: ${result.skippedDerivedTables.join(', ')}`
+            : '';
         dispatch({
-          type: "set-summary",
+          type: 'set-summary',
           summary: `ZIP import done: ${result.tablesImported} source tables, ${result.rowsImported} source rows, ${result.derivedTablesMaterialized} derived tables, ${result.derivedRowsWritten} derived rows, ${elapsedLabel}${skipped}${skippedDerived}`,
         });
         setStatusMessage(
           `ZIP取込完了: ${result.tablesImported} source / ${result.derivedTablesMaterialized} derived (${elapsedLabel})`,
-          "ok",
+          'ok',
         );
       } catch (error) {
-        handleError(error, "ZIP取込に失敗しました", setStatusMessage);
+        handleError(error, 'ZIP取込に失敗しました', setStatusMessage);
       } finally {
-        dispatch({type: "set-busy", busy: false});
+        dispatch({ type: 'set-busy', busy: false });
       }
     },
     [refreshTables, setStatusMessage],
@@ -337,23 +349,23 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
     }
 
     const confirmed = globalThis.confirm(
-      "現在のDBを削除して再作成します。この操作は元に戻せません。続行しますか？",
+      '現在のDBを削除して再作成します。この操作は元に戻せません。続行しますか？',
     );
     if (!confirmed) {
-      setStatusMessage("DBクリアをキャンセルしました", "warn");
+      setStatusMessage('DBクリアをキャンセルしました', 'warn');
       return;
     }
 
-    dispatch({type: "set-busy", busy: true});
+    dispatch({ type: 'set-busy', busy: true });
     try {
       await loaderRef.current.clearDatabase();
       await refreshTables();
-      dispatch({type: "increment-file-input-reset-token"});
-      setStatusMessage("DBを削除して再作成しました", "ok");
+      dispatch({ type: 'increment-file-input-reset-token' });
+      setStatusMessage('DBを削除して再作成しました', 'ok');
     } catch (error) {
-      handleError(error, "DBクリアに失敗しました", setStatusMessage);
+      handleError(error, 'DBクリアに失敗しました', setStatusMessage);
     } finally {
-      dispatch({type: "set-busy", busy: false});
+      dispatch({ type: 'set-busy', busy: false });
     }
   }, [refreshTables, setStatusMessage]);
 
@@ -363,34 +375,34 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
     }
 
     if (!state.selectedTable) {
-      setStatusMessage("テーブルを選択してください", "warn");
+      setStatusMessage('テーブルを選択してください', 'warn');
       return;
     }
 
     const parsedLimit = parseLimit(state.limit);
     if (!parsedLimit.ok) {
-      setStatusMessage(parsedLimit.errorMessage, "warn");
+      setStatusMessage(parsedLimit.errorMessage, 'warn');
       return;
     }
 
-    dispatch({type: "set-busy", busy: true});
+    dispatch({ type: 'set-busy', busy: true });
     try {
       const loadedRows = await loaderRef.current.readRows(state.selectedTable, parsedLimit.value);
-      dispatch({type: "set-rows", rows: loadedRows});
-      setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, "ok");
+      dispatch({ type: 'set-rows', rows: loadedRows });
+      setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
     } catch (error) {
       handleError(error, `${state.selectedTable} の読込に失敗しました`, setStatusMessage);
     } finally {
-      dispatch({type: "set-busy", busy: false});
+      dispatch({ type: 'set-busy', busy: false });
     }
   }, [setStatusMessage, state.limit, state.selectedTable]);
 
   const actions = useMemo<WorkbenchActions>(
     () => ({
-      setStorage: (storage) => dispatch({type: "set-storage", storage}),
+      setStorage: (storage) => dispatch({ type: 'set-storage', storage }),
       setDerivedTablesEnabled,
-      setSelectedTable: (selectedTable) => dispatch({type: "set-selected-table", selectedTable}),
-      setLimit: (limit) => dispatch({type: "set-limit", limit}),
+      setSelectedTable: (selectedTable) => dispatch({ type: 'set-selected-table', selectedTable }),
+      setLimit: (limit) => dispatch({ type: 'set-limit', limit }),
       openDb,
       closeDb,
       refreshTables,

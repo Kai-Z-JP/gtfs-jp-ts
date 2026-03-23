@@ -1,9 +1,9 @@
-import type { ImportProgressEmitter } from "../../types.js";
-import { AsyncQueue } from "../async-queue.js";
-import { ParseWorkerClient } from "./parse-worker-client.js";
-import type { QueuedChunk } from "./chunk.js";
-import type { ImportTarget } from "./import-targets.js";
-import { emitSourceEvent } from "./progress.js";
+import type { ImportProgressEmitter } from '../../types.js';
+import { AsyncQueue } from '../async-queue.js';
+import { ParseWorkerClient } from './parse-worker-client.js';
+import type { QueuedChunk } from './chunk.js';
+import type { ImportTarget } from './import-targets.js';
+import { emitSourceEvent } from './progress.js';
 
 type StartParseWorkersArgs = {
   parseWorkerConcurrency: number;
@@ -49,55 +49,55 @@ export const startParseWorkers = ({
           const target = targets[index];
           const writerQueue = writerQueues[target.index % writerCount];
 
-          emitSourceEvent(emit, target.tableName, "running", `Import started: ${target.fileName}`);
+          emitSourceEvent(emit, target.tableName, 'running', `Import started: ${target.fileName}`);
 
           let chunkIndex = 0;
           try {
-            const bytes = await target.entry.async("uint8array");
-            await parseWorker.parse(
-              target.fileName,
-              target.tableName,
-              bytes,
-              parseChunkRowCount,
-              {
-                onStart: (headers) => {
-                  writerQueue.push({
-                    fileName: target.fileName,
-                    tableName: target.tableName,
-                    headers,
-                    rows: [],
-                    isFirst: true,
-                    isLast: false,
-                    chunkIndex: -1,
-                  });
-                },
-                onChunk: (nextChunkIndex, rows) => {
-                  chunkIndex = nextChunkIndex;
-                  writerQueue.push({
-                    fileName: target.fileName,
-                    tableName: target.tableName,
-                    headers: [],
-                    rows,
-                    isFirst: false,
-                    isLast: false,
-                    chunkIndex: nextChunkIndex,
-                  });
-                },
-                onDone: (parsedRows) => {
-                  writerQueue.push({
-                    fileName: target.fileName,
-                    tableName: target.tableName,
-                    headers: [],
-                    rows: [],
-                    isFirst: false,
-                    isLast: true,
-                    chunkIndex,
-                  });
-
-                  emitSourceEvent(emit, target.tableName, "running", `Import parsed: ${target.fileName}`, parsedRows);
-                },
+            const bytes = await target.entry.async('uint8array');
+            await parseWorker.parse(target.fileName, target.tableName, bytes, parseChunkRowCount, {
+              onStart: (headers) => {
+                writerQueue.push({
+                  fileName: target.fileName,
+                  tableName: target.tableName,
+                  headers,
+                  rows: [],
+                  isFirst: true,
+                  isLast: false,
+                  chunkIndex: -1,
+                });
               },
-            );
+              onChunk: (nextChunkIndex, rows) => {
+                chunkIndex = nextChunkIndex;
+                writerQueue.push({
+                  fileName: target.fileName,
+                  tableName: target.tableName,
+                  headers: [],
+                  rows,
+                  isFirst: false,
+                  isLast: false,
+                  chunkIndex: nextChunkIndex,
+                });
+              },
+              onDone: (parsedRows) => {
+                writerQueue.push({
+                  fileName: target.fileName,
+                  tableName: target.tableName,
+                  headers: [],
+                  rows: [],
+                  isFirst: false,
+                  isLast: true,
+                  chunkIndex,
+                });
+
+                emitSourceEvent(
+                  emit,
+                  target.tableName,
+                  'running',
+                  `Import parsed: ${target.fileName}`,
+                  parsedRows,
+                );
+              },
+            });
           } catch (error) {
             setFirstError(error, {
               fileName: target.fileName,

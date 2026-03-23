@@ -1,15 +1,15 @@
-import type { SqliteStorageMode } from "../types.js";
+import type { SqliteStorageMode } from '../types.js';
 
 export const resolveFilename = (mode: SqliteStorageMode, fileName?: string): string => {
-  if (mode === "memory") {
-    return ":memory:";
+  if (mode === 'memory') {
+    return ':memory:';
   }
 
   if (!fileName) {
-    return "file:gtfs-jp-v4.sqlite3?vfs=opfs";
+    return 'file:gtfs-jp-v4.sqlite3?vfs=opfs';
   }
 
-  if (fileName.startsWith("file:")) {
+  if (fileName.startsWith('file:')) {
     return fileName;
   }
 
@@ -26,31 +26,31 @@ export const getOpfsUnavailableReason = (): string | undefined => {
   };
 
   if (runtime.isSecureContext === false) {
-    return "requires a secure context (HTTPS or localhost).";
+    return 'requires a secure context (HTTPS or localhost).';
   }
 
   if (runtime.crossOriginIsolated === false) {
-    return "missing COOP/COEP headers (Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy).";
+    return 'missing COOP/COEP headers (Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy).';
   }
 
-  if (typeof runtime.SharedArrayBuffer === "undefined" || typeof runtime.Atomics === "undefined") {
-    return "SharedArrayBuffer and/or Atomics are unavailable.";
+  if (typeof runtime.SharedArrayBuffer === 'undefined' || typeof runtime.Atomics === 'undefined') {
+    return 'SharedArrayBuffer and/or Atomics are unavailable.';
   }
 
-  if (typeof runtime.navigator?.storage?.getDirectory !== "function") {
-    return "navigator.storage.getDirectory() is not available in this environment.";
+  if (typeof runtime.navigator?.storage?.getDirectory !== 'function') {
+    return 'navigator.storage.getDirectory() is not available in this environment.';
   }
 
   return undefined;
 };
 
 export const toOpfsPath = (filename: string): string => {
-  if (!filename.startsWith("file:")) {
+  if (!filename.startsWith('file:')) {
     throw new Error(`OPFS filename must start with file: ${filename}`);
   }
 
   const withoutScheme = filename.slice(5);
-  const pathPart = withoutScheme.split("?")[0] ?? "";
+  const pathPart = withoutScheme.split('?')[0] ?? '';
   if (!pathPart) {
     throw new Error(`OPFS filename has no path: ${filename}`);
   }
@@ -59,11 +59,11 @@ export const toOpfsPath = (filename: string): string => {
 };
 
 export const writeBytesToOpfsFile = async (path: string, bytes: Uint8Array): Promise<void> => {
-  if (typeof globalThis.navigator?.storage?.getDirectory !== "function") {
-    throw new Error("navigator.storage.getDirectory() is not available in this environment.");
+  if (typeof globalThis.navigator?.storage?.getDirectory !== 'function') {
+    throw new Error('navigator.storage.getDirectory() is not available in this environment.');
   }
 
-  const normalizedParts = path.split("/").filter((part) => part.length > 0);
+  const normalizedParts = path.split('/').filter((part) => part.length > 0);
   if (normalizedParts.length === 0) {
     throw new Error(`Invalid OPFS path: ${path}`);
   }

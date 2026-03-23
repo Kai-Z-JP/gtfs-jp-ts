@@ -1,4 +1,4 @@
-import type { ImportProgressEmitter, ImportTargetState } from "../../types.js";
+import type { ImportProgressEmitter, ImportTargetState } from '../../types.js';
 
 export const emitSourceEvent = (
   emit: ImportProgressEmitter,
@@ -8,8 +8,8 @@ export const emitSourceEvent = (
   rowsWritten?: number,
 ): void => {
   emit({
-    phase: "import",
-    targetKind: "source",
+    phase: 'import',
+    targetKind: 'source',
     targetName: tableName,
     state,
     message,

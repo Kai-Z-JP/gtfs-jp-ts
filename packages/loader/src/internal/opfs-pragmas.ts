@@ -1,11 +1,11 @@
-import type { GtfsRow } from "@gtfs-jp/types";
+import type { GtfsRow } from '@gtfs-jp/types';
 
-import { SqliteSession } from "./session.js";
+import { SqliteSession } from './session.js';
 
 type OpfsImportPragmaSnapshot = {
   synchronous: number;
   tempStore: number;
-  lockingMode: "normal" | "exclusive";
+  lockingMode: 'normal' | 'exclusive';
 };
 
 const toSafePragmaInt = (
@@ -39,7 +39,7 @@ const readPragmaValue = async (session: SqliteSession, name: string): Promise<st
     throw new Error(`PRAGMA ${name} returned an empty value`);
   }
 
-  if (typeof value !== "string" && typeof value !== "number") {
+  if (typeof value !== 'string' && typeof value !== 'number') {
     throw new Error(`PRAGMA ${name} returned unsupported value type`);
   }
 
@@ -48,7 +48,7 @@ const readPragmaValue = async (session: SqliteSession, name: string): Promise<st
 
 const readNumericPragma = async (session: SqliteSession, name: string): Promise<number> => {
   const value = await readPragmaValue(session, name);
-  const numeric = typeof value === "number" ? value : Number(value);
+  const numeric = typeof value === 'number' ? value : Number(value);
 
   if (!Number.isFinite(numeric)) {
     throw new Error(`PRAGMA ${name} returned a non-numeric value: ${String(value)}`);
@@ -63,15 +63,15 @@ const readTextPragma = async (session: SqliteSession, name: string): Promise<str
 
 const captureSnapshot = async (session: SqliteSession): Promise<OpfsImportPragmaSnapshot> => {
   const [synchronous, tempStore, lockingMode] = await Promise.all([
-    readNumericPragma(session, "synchronous"),
-    readNumericPragma(session, "temp_store"),
-    readTextPragma(session, "locking_mode"),
+    readNumericPragma(session, 'synchronous'),
+    readNumericPragma(session, 'temp_store'),
+    readTextPragma(session, 'locking_mode'),
   ]);
 
   return {
     synchronous: toSafePragmaInt(synchronous, 0, 3, 2),
     tempStore: toSafePragmaInt(tempStore, 0, 2, 0),
-    lockingMode: lockingMode.trim().toLowerCase() === "exclusive" ? "exclusive" : "normal",
+    lockingMode: lockingMode.trim().toLowerCase() === 'exclusive' ? 'exclusive' : 'normal',
   };
 };
 
@@ -80,9 +80,9 @@ export const withOpfsImportWriteTuning = async <T>(
   runner: () => Promise<T>,
 ): Promise<T> => {
   const snapshot = await captureSnapshot(session);
-  await session.exec("PRAGMA synchronous = NORMAL;");
-  await session.exec("PRAGMA temp_store = MEMORY;");
-  await session.exec("PRAGMA locking_mode = EXCLUSIVE;");
+  await session.exec('PRAGMA synchronous = NORMAL;');
+  await session.exec('PRAGMA temp_store = MEMORY;');
+  await session.exec('PRAGMA locking_mode = EXCLUSIVE;');
 
   try {
     return await runner();

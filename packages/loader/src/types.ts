@@ -1,4 +1,4 @@
-import type {GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow} from "@gtfs-jp/types";
+import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from '@gtfs-jp/types';
 
 import type {
   GtfsSchemaDefinition,
@@ -7,10 +7,10 @@ import type {
   GtfsSchemaTableRow,
   SourceReadColumns,
   SourceReadRow,
-} from "./schema-types.js";
-import type {SqlBindMap, SqlBindValue} from "./sql-types.js";
+} from './schema-types.js';
+import type { SqlBindMap, SqlBindValue } from './sql-types.js';
 
-export type SqliteStorageMode = "memory" | "opfs";
+export type SqliteStorageMode = 'memory' | 'opfs';
 
 export interface GtfsLoaderOptions<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> {
   storage?: SqliteStorageMode;
@@ -37,10 +37,10 @@ export interface LoadGtfsTablesOptions extends TableReadOptions {
   skipMissing?: boolean;
 }
 
-export type ImportProgressPhase = "prepare" | "import" | "derive" | "done" | "error";
+export type ImportProgressPhase = 'prepare' | 'import' | 'derive' | 'done' | 'error';
 
-export type ImportTargetState = "queued" | "running" | "done" | "skipped" | "error";
-export type ImportTargetKind = "source" | "derived";
+export type ImportTargetState = 'queued' | 'running' | 'done' | 'skipped' | 'error';
+export type ImportTargetKind = 'source' | 'derived';
 
 export interface ImportProgressTarget {
   targetKind: ImportTargetKind;
@@ -62,7 +62,7 @@ export interface ImportGtfsZipOptions {
   dbWriteConcurrency?: number;
   parseChunkRowCount?: number;
   insertBatchRowCount?: number;
-  opfsImportMode?: "memory-stage" | "direct";
+  opfsImportMode?: 'memory-stage' | 'direct';
   onProgress?: (event: ImportProgressEvent) => void;
 }
 
@@ -104,7 +104,9 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
     },
   ): Promise<Array<SourceReadRow<TName, TColumns>>>;
   readRows(tableName: string, options?: TableReadOptions): Promise<GtfsRow[]>;
-  loadTables(options?: LoadGtfsTablesOptions): Promise<Partial<Record<GtfsJpV4TableName, GtfsRow[]>>>;
+  loadTables(
+    options?: LoadGtfsTablesOptions,
+  ): Promise<Partial<Record<GtfsJpV4TableName, GtfsRow[]>>>;
   importZip(
     file: File | Blob | ArrayBuffer | Uint8Array,
     options?: ImportGtfsZipOptions,

@@ -4,9 +4,9 @@ GTFS-JP v4 を TypeScript で扱うためのライブラリ群です。ブラウ
 
 ## Packages
 
-| パッケージ                                  | 概要                                                     |
-|----------------------------------------|--------------------------------------------------------|
-| [`@gtfs-jp/types`](./packages/types)   | GTFS-JP v4 全33テーブルのスキーマ定義と TypeScript 型                |
+| パッケージ                             | 概要                                                               |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| [`@gtfs-jp/types`](./packages/types)   | GTFS-JP v4 全33テーブルのスキーマ定義と TypeScript 型              |
 | [`@gtfs-jp/loader`](./packages/loader) | Browser SQLite WASM (in-memory / OPFS) によるZIPインポートとクエリ |
 
 ## Quick Start
@@ -16,16 +16,16 @@ npm install @gtfs-jp/types @gtfs-jp/loader
 ```
 
 ```ts
-import {createGtfsLoader} from "@gtfs-jp/loader";
+import { createGtfsLoader } from '@gtfs-jp/loader';
 
-const loader = createGtfsLoader({storage: "memory"});
+const loader = createGtfsLoader({ storage: 'memory' });
 await loader.open();
 
 // GTFS-JP ZIP をインポート
 await loader.importZip(file);
 
 // 型付きでテーブルを読み取り
-const routes = await loader.readTable("routes", {limit: 100});
+const routes = await loader.readTable('routes', { limit: 100 });
 // routes[0].route_id, routes[0].route_type ... 全て型付き
 
 await loader.close();
@@ -33,8 +33,8 @@ await loader.close();
 
 ## Apps
 
-| ディレクトリ                     | 概要                                 |
-|----------------------------|------------------------------------|
+| ディレクトリ               | 概要                                           |
+| -------------------------- | ---------------------------------------------- |
 | [`apps/demo`](./apps/demo) | `@gtfs-jp/loader` を使ったブラウザ UI サンプル |
 
 ## Development

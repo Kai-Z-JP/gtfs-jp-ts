@@ -1,7 +1,7 @@
-import JSZip from "jszip";
-import { resolveGtfsJpV4TableNameFromFileName } from "@gtfs-jp/types";
+import JSZip from 'jszip';
+import { resolveGtfsJpV4TableNameFromFileName } from '@gtfs-jp/types';
 
-import { toTableNameFromTxtFile } from "../sql.js";
+import { toTableNameFromTxtFile } from '../sql.js';
 
 export type ImportTarget = {
   index: number;
@@ -19,19 +19,21 @@ export const collectImportTargets = (options: {
 } => {
   const txtEntries = Object.values(options.archive.files)
     .filter((entry) => !entry.dir)
-    .filter((entry) => entry.name.toLowerCase().endsWith(".txt"));
+    .filter((entry) => entry.name.toLowerCase().endsWith('.txt'));
 
   if (txtEntries.length === 0) {
-    throw new Error("ZIP does not contain .txt files");
+    throw new Error('ZIP does not contain .txt files');
   }
 
   const targets: ImportTarget[] = [];
   const skippedFiles: string[] = [];
 
   for (const entry of txtEntries) {
-    const fileName = entry.name.split("/").pop() ?? entry.name;
+    const fileName = entry.name.split('/').pop() ?? entry.name;
     const strictTableName = resolveGtfsJpV4TableNameFromFileName(fileName);
-    const fallbackTableName = options.strictGtfsTableName ? undefined : toTableNameFromTxtFile(fileName);
+    const fallbackTableName = options.strictGtfsTableName
+      ? undefined
+      : toTableNameFromTxtFile(fileName);
     const tableName = strictTableName ?? fallbackTableName;
 
     if (!tableName) {
@@ -48,7 +50,7 @@ export const collectImportTargets = (options: {
   }
 
   if (targets.length === 0) {
-    throw new Error("No importable .txt files found in ZIP");
+    throw new Error('No importable .txt files found in ZIP');
   }
 
   return {

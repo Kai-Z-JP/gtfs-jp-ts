@@ -1,20 +1,20 @@
-import JSZip from "jszip";
+import JSZip from 'jszip';
 
 import type {
   ImportGtfsZipOptions,
   ImportGtfsZipResult,
   ImportProgressEmitter,
   SqliteStorageMode,
-} from "../../types.js";
-import { AsyncQueue } from "../async-queue.js";
-import { withOpfsImportWriteTuning } from "../opfs-pragmas.js";
-import { SqliteSession } from "../session.js";
-import type { ImportMetrics, QueuedChunk } from "./chunk.js";
-import { collectImportTargets } from "./import-targets.js";
-import { startParseWorkers } from "./parse-workers.js";
-import { emitSourceEvent } from "./progress.js";
-import { startWriteWorkers } from "./write-workers.js";
-import type { DerivedMaterializationResult } from "../materialization.js";
+} from '../../types.js';
+import { AsyncQueue } from '../async-queue.js';
+import { withOpfsImportWriteTuning } from '../opfs-pragmas.js';
+import { SqliteSession } from '../session.js';
+import type { ImportMetrics, QueuedChunk } from './chunk.js';
+import { collectImportTargets } from './import-targets.js';
+import { startParseWorkers } from './parse-workers.js';
+import { emitSourceEvent } from './progress.js';
+import { startWriteWorkers } from './write-workers.js';
+import type { DerivedMaterializationResult } from '../materialization.js';
 
 type ImportIntoSessionArgs = {
   session: SqliteSession;
@@ -31,7 +31,9 @@ type ImportIntoSessionArgs = {
   }) => Promise<DerivedMaterializationResult>;
 };
 
-const toArrayBuffer = async (value: File | Blob | ArrayBuffer | Uint8Array): Promise<ArrayBuffer> => {
+const toArrayBuffer = async (
+  value: File | Blob | ArrayBuffer | Uint8Array,
+): Promise<ArrayBuffer> => {
   if (value instanceof ArrayBuffer) {
     return value;
   }
@@ -71,15 +73,15 @@ export const importZipIntoSession = async ({
   });
 
   emit({
-    phase: "prepare",
+    phase: 'prepare',
     message: `Import targets prepared: ${targets.length} files`,
     targets: [
       ...targets.map((target) => ({
-        targetKind: "source" as const,
+        targetKind: 'source' as const,
         targetName: target.tableName,
       })),
       ...derivedTargetNames.map((targetName) => ({
-        targetKind: "derived" as const,
+        targetKind: 'derived' as const,
         targetName,
       })),
     ],
@@ -88,18 +90,18 @@ export const importZipIntoSession = async ({
   const parseWorkerConcurrency = normalizeConcurrency(options.parseWorkerConcurrency, 8);
   const dbWriteConcurrency =
     options.dbWriteConcurrency === undefined
-      ? mode === "opfs"
+      ? mode === 'opfs'
         ? 1
         : normalizeConcurrency(undefined, 4)
       : normalizeConcurrency(options.dbWriteConcurrency, 8);
 
   const parseChunkRowCount = Math.max(
     1,
-    Math.floor(options.parseChunkRowCount ?? (mode === "opfs" ? 10000 : 5000)),
+    Math.floor(options.parseChunkRowCount ?? (mode === 'opfs' ? 10000 : 5000)),
   );
   const insertBatchRowCount = Math.max(
     1,
-    Math.floor(options.insertBatchRowCount ?? (mode === "opfs" ? 10000 : 2500)),
+    Math.floor(options.insertBatchRowCount ?? (mode === 'opfs' ? 10000 : 2500)),
   );
 
   const writerCount = Math.min(Math.max(1, dbWriteConcurrency), targets.length);
@@ -114,7 +116,10 @@ export const importZipIntoSession = async ({
   let hasError = false;
   let firstError: unknown;
 
-  const setFirstError = (error: unknown, context?: { fileName?: string; tableName?: string }): void => {
+  const setFirstError = (
+    error: unknown,
+    context?: { fileName?: string; tableName?: string },
+  ): void => {
     if (hasError) {
       return;
     }
@@ -128,12 +133,12 @@ export const importZipIntoSession = async ({
 
     if (context?.fileName && context.tableName) {
       const message = error instanceof Error ? error.message : String(error);
-      emitSourceEvent(emit, context.tableName, "error", `${context.fileName}: ${message}`);
+      emitSourceEvent(emit, context.tableName, 'error', `${context.fileName}: ${message}`);
     }
   };
 
   const runInTransaction = async (): Promise<DerivedMaterializationResult> => {
-    await session.exec(mode === "opfs" ? "BEGIN IMMEDIATE;" : "BEGIN;");
+    await session.exec(mode === 'opfs' ? 'BEGIN IMMEDIATE;' : 'BEGIN;');
 
     try {
       const writeWorkers = startWriteWorkers({
@@ -168,7 +173,7 @@ export const importZipIntoSession = async ({
 
       await Promise.all(writeWorkers);
       if (hasError) {
-        throw firstError ?? new Error("Import failed");
+        throw firstError ?? new Error('Import failed');
       }
 
       const derivedResult = afterImport
@@ -184,17 +189,17 @@ export const importZipIntoSession = async ({
             tableMetrics: [],
           };
 
-      await session.exec("COMMIT;");
+      await session.exec('COMMIT;');
 
       return derivedResult;
     } catch (error) {
-      await session.exec("ROLLBACK;");
+      await session.exec('ROLLBACK;');
       throw error;
     }
   };
 
   let derivedResult: DerivedMaterializationResult;
-  if (mode === "opfs") {
+  if (mode === 'opfs') {
     derivedResult = await withOpfsImportWriteTuning(session, runInTransaction);
   } else {
     derivedResult = await runInTransaction();

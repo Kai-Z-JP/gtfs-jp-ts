@@ -4,7 +4,7 @@ import {
   type GtfsJpV4TableRow,
   type GtfsRow,
   isGtfsJpV4TableName,
-} from "@gtfs-jp/types";
+} from '@gtfs-jp/types';
 
 import type {
   GtfsSchemaDefinition,
@@ -13,7 +13,7 @@ import type {
   GtfsSchemaTableRow,
   SourceReadColumns,
   SourceReadRow,
-} from "./schema-types.js";
+} from './schema-types.js';
 import type {
   GtfsLoader,
   GtfsLoaderOptions,
@@ -23,24 +23,24 @@ import type {
   SqlBindMap,
   SqliteStorageMode,
   TableReadOptions,
-} from "./types.js";
-import {importZipViaMemoryStage} from "./internal/import/import-memory-stage.js";
-import {importZipIntoSession} from "./internal/import/import-pipeline.js";
+} from './types.js';
+import { importZipViaMemoryStage } from './internal/import/import-memory-stage.js';
+import { importZipIntoSession } from './internal/import/import-pipeline.js';
 import {
   compileGtfsSchema,
   isInternalMaterializationTable,
-  runDerivedMaterialization
-} from "./internal/materialization.js";
+  runDerivedMaterialization,
+} from './internal/materialization.js';
 import {
   assertIdentifier,
   buildLimitOffsetClause,
   buildOrderByClause,
   buildSelectClause,
-  quoteIdentifier
-} from "./internal/sql.js";
-import {readTypedGtfsSourceRows} from "./internal/source-read.js";
-import {SqliteSession} from "./internal/session.js";
-import {getOpfsUnavailableReason} from "./internal/storage.js";
+  quoteIdentifier,
+} from './internal/sql.js';
+import { readTypedGtfsSourceRows } from './internal/source-read.js';
+import { SqliteSession } from './internal/session.js';
+import { getOpfsUnavailableReason } from './internal/storage.js';
 
 const readRowsFromSession = async (
   session: SqliteSession,
@@ -51,13 +51,15 @@ const readRowsFromSession = async (
 
   const selectClause = buildSelectClause(options.columns);
   const orderByClause = buildOrderByClause(options.orderBy);
-  const {clause: limitOffsetClause, bind} = buildLimitOffsetClause(options);
+  const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
 
   const sql = `${selectClause} FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
   return await session.execRows<GtfsRow>(sql, bind);
 };
 
-class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> implements GtfsLoader<TSchema> {
+class GtfsLoaderImpl<
+  TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition,
+> implements GtfsLoader<TSchema> {
   #mode: SqliteStorageMode;
   #strictGtfsTableName: boolean;
   #session: SqliteSession;
@@ -65,7 +67,7 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
   #runtime: GtfsSchemaRuntime<TSchema>;
 
   constructor(options: GtfsLoaderOptions<TSchema> = {}) {
-    this.#mode = options.storage ?? "memory";
+    this.#mode = options.storage ?? 'memory';
     this.#strictGtfsTableName = options.strictGtfsTableName ?? true;
     this.#session = new SqliteSession({
       mode: this.#mode,
@@ -81,7 +83,7 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
   }
 
   async open(): Promise<void> {
-    if (this.#mode === "opfs") {
+    if (this.#mode === 'opfs') {
       const reason = getOpfsUnavailableReason();
       if (reason) {
         throw new Error(`OPFS mode is unavailable: ${reason}`);
@@ -96,7 +98,7 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
   }
 
   async reset(): Promise<void> {
-    await this.close({ unlink: this.#mode === "opfs" });
+    await this.close({ unlink: this.#mode === 'opfs' });
     await this.open();
   }
 
@@ -157,7 +159,9 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
       throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
     }
 
-    return (await readTypedGtfsSourceRows(this.#session, tableName, options)) as Array<SourceReadRow<TName, TColumns>>;
+    return (await readTypedGtfsSourceRows(this.#session, tableName, options)) as Array<
+      SourceReadRow<TName, TColumns>
+    >;
   }
 
   async readRows(tableName: string, options: TableReadOptions = {}): Promise<GtfsRow[]> {
@@ -189,7 +193,7 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
     file: File | Blob | ArrayBuffer | Uint8Array,
     options: ImportGtfsZipOptions = {},
   ): Promise<ImportGtfsZipResult> {
-    const emit = (event: Parameters<NonNullable<ImportGtfsZipOptions["onProgress"]>>[0]): void => {
+    const emit = (event: Parameters<NonNullable<ImportGtfsZipOptions['onProgress']>>[0]): void => {
       options.onProgress?.(event);
     };
 
@@ -207,9 +211,9 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
               tablesImported: number;
               rowsImported: number;
               sourceTables: readonly {
-                targetKind: "source" | "derived";
+                targetKind: 'source' | 'derived';
                 tableName: string;
-                state: "queued" | "running" | "done" | "skipped" | "error";
+                state: 'queued' | 'running' | 'done' | 'skipped' | 'error';
                 rowsWritten: number;
                 error?: string;
                 skipReason?: string;
@@ -226,7 +230,7 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
 
     try {
       const result =
-        this.#mode === "opfs" && (options.opfsImportMode ?? "memory-stage") === "memory-stage"
+        this.#mode === 'opfs' && (options.opfsImportMode ?? 'memory-stage') === 'memory-stage'
           ? await importZipViaMemoryStage({
               session: this.#session,
               strictGtfsTableName: this.#strictGtfsTableName,
@@ -248,14 +252,14 @@ class GtfsLoaderImpl<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition
             });
 
       emit({
-        phase: "done",
+        phase: 'done',
         message: `ZIP import done: ${result.tablesImported} source tables, ${result.derivedTablesMaterialized} derived tables`,
       });
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       emit({
-        phase: "error",
+        phase: 'error',
         message: `ZIP import failed: ${message}`,
       });
       throw error;

@@ -1,4 +1,4 @@
-import type {SqlBindMap} from "../types.js";
+import type { SqlBindMap } from '../types.js';
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -21,23 +21,23 @@ const assertNonNegativeInteger = (name: string, value: number): void => {
 
 export const buildOrderByClause = (orderBy?: string | readonly string[]): string => {
   if (!orderBy) {
-    return "";
+    return '';
   }
 
   const columns = Array.isArray(orderBy) ? orderBy : [orderBy];
   if (columns.length === 0) {
-    return "";
+    return '';
   }
 
-  return ` ORDER BY ${columns.map((column) => quoteIdentifier(column)).join(", ")}`;
+  return ` ORDER BY ${columns.map((column) => quoteIdentifier(column)).join(', ')}`;
 };
 
 export const buildSelectClause = (columns?: readonly string[]): string => {
   if (!columns || columns.length === 0) {
-    return "SELECT *";
+    return 'SELECT *';
   }
 
-  return `SELECT ${columns.map((column) => quoteIdentifier(column)).join(", ")}`;
+  return `SELECT ${columns.map((column) => quoteIdentifier(column)).join(', ')}`;
 };
 
 export const buildLimitOffsetClause = (options: {
@@ -49,33 +49,33 @@ export const buildLimitOffsetClause = (options: {
   const { limit } = options;
   const offset = options.offset ?? 0;
 
-  assertNonNegativeInteger("offset", offset);
+  assertNonNegativeInteger('offset', offset);
 
   if (limit !== undefined) {
-    assertNonNegativeInteger("limit", limit);
-    parts.push("LIMIT :limit");
+    assertNonNegativeInteger('limit', limit);
+    parts.push('LIMIT :limit');
     bind.limit = limit;
   }
 
   if (offset > 0) {
     if (limit === undefined) {
-      parts.push("LIMIT -1");
+      parts.push('LIMIT -1');
     }
-    parts.push("OFFSET :offset");
+    parts.push('OFFSET :offset');
     bind.offset = offset;
   }
 
   if (parts.length === 0) {
-    return { clause: "", bind };
+    return { clause: '', bind };
   }
 
-  return { clause: ` ${parts.join(" ")}`, bind };
+  return { clause: ` ${parts.join(' ')}`, bind };
 };
 
 export const normalizeBind = (bind: SqlBindMap): SqlBindMap => {
   const normalized: SqlBindMap = {};
   for (const [key, value] of Object.entries(bind)) {
-    if (key.startsWith(":") || key.startsWith("$") || key.startsWith("@")) {
+    if (key.startsWith(':') || key.startsWith('$') || key.startsWith('@')) {
       normalized[key] = value;
       continue;
     }
@@ -86,12 +86,12 @@ export const normalizeBind = (bind: SqlBindMap): SqlBindMap => {
 
 export const toSqlLiteral = (value: string | undefined): string => {
   if (value === undefined) {
-    return "NULL";
+    return 'NULL';
   }
 
-  const normalized = value.replace(/\r$/, "");
-  if (normalized === "") {
-    return "NULL";
+  const normalized = value.replace(/\r$/, '');
+  if (normalized === '') {
+    return 'NULL';
   }
 
   return `'${normalized.replaceAll("'", "''")}'`;
@@ -99,7 +99,7 @@ export const toSqlLiteral = (value: string | undefined): string => {
 
 export const toTableNameFromTxtFile = (fileName: string): string | undefined => {
   const lower = fileName.toLowerCase();
-  if (!lower.endsWith(".txt")) {
+  if (!lower.endsWith('.txt')) {
     return undefined;
   }
 

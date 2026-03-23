@@ -10,7 +10,7 @@ export class AsyncQueue<T> {
 
   push(item: T): void {
     if (this.#closed) {
-      throw new Error("Queue is closed");
+      throw new Error('Queue is closed');
     }
 
     const waiter = this.#waiters.shift();

@@ -1,18 +1,18 @@
-import { inferSchema, initParser } from "udsv";
+import { inferSchema, initParser } from 'udsv';
 
 import type {
   ParseWorkerErrorResponse,
   ParseWorkerRequest,
   ParseWorkerResponse,
-} from "./internal/import/protocol.js";
+} from './internal/import/protocol.js';
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const textDecoder = new TextDecoder("utf-8");
+const textDecoder = new TextDecoder('utf-8');
 
 const runtime = self as DedicatedWorkerGlobalScope;
 
 const normalizeHeaderName = (header: string, fileName: string, index: number): string => {
-  const cleaned = header.replace(/^\uFEFF/, "").trim();
+  const cleaned = header.replace(/^\uFEFF/, '').trim();
   if (!cleaned) {
     throw new Error(`${fileName}: header[${index}] is empty`);
   }
@@ -25,7 +25,7 @@ const normalizeHeaderName = (header: string, fileName: string, index: number): s
 };
 
 const hasNonEmptyCell = (row: string[]): boolean =>
-  row.some((value) => value !== undefined && value.trim() !== "");
+  row.some((value) => value !== undefined && value.trim() !== '');
 
 const toErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -37,7 +37,7 @@ const toErrorMessage = (error: unknown): string => {
 
 const postError = (requestId: number, error: unknown): void => {
   const response: ParseWorkerErrorResponse = {
-    type: "error",
+    type: 'error',
     requestId,
     error: toErrorMessage(error),
   };
@@ -46,7 +46,7 @@ const postError = (requestId: number, error: unknown): void => {
 
 runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
   const request = event.data;
-  if (request.type !== "parse") {
+  if (request.type !== 'parse') {
     return;
   }
 
@@ -65,7 +65,7 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
       }
 
       const response: ParseWorkerResponse = {
-        type: "chunk",
+        type: 'chunk',
         requestId: request.requestId,
         chunkIndex,
         rows: chunk,
@@ -75,7 +75,7 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
       chunkIndex += 1;
     };
 
-    if (csv.trim() !== "") {
+    if (csv.trim() !== '') {
       const parser = initParser(
         inferSchema(csv, {
           header: () => [],
@@ -96,7 +96,7 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
           }
 
           const startResponse: ParseWorkerResponse = {
-            type: "start",
+            type: 'start',
             requestId: request.requestId,
             headers,
           };
@@ -115,7 +115,7 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
 
     if (!headers) {
       const startResponse: ParseWorkerResponse = {
-        type: "start",
+        type: 'start',
         requestId: request.requestId,
         headers: [],
       };
@@ -125,7 +125,7 @@ runtime.onmessage = (event: MessageEvent<ParseWorkerRequest>): void => {
     flushChunk();
 
     const doneResponse: ParseWorkerResponse = {
-      type: "done",
+      type: 'done',
       requestId: request.requestId,
       parsedRows,
     };

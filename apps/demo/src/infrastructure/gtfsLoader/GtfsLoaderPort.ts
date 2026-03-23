@@ -1,5 +1,5 @@
-import type {GtfsRow} from "@gtfs-jp/types";
-import type {ImportProgressEvent, ImportGtfsZipResult} from "@gtfs-jp/loader";
+import type { GtfsRow } from '@gtfs-jp/types';
+import type { ImportProgressEvent, ImportGtfsZipResult } from '@gtfs-jp/loader';
 
 export interface GtfsLoaderPort {
   open(): Promise<void>;
@@ -12,7 +12,10 @@ export interface GtfsLoaderPort {
 
   listAllTables(): Promise<string[]>;
 
-  importGtfsZip(file: File, onProgress: (event: ImportProgressEvent) => void): Promise<ImportGtfsZipResult>;
+  importGtfsZip(
+    file: File,
+    onProgress: (event: ImportProgressEvent) => void,
+  ): Promise<ImportGtfsZipResult>;
 
   readRows(tableName: string, limit: number): Promise<GtfsRow[]>;
 }

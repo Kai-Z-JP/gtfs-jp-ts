@@ -1,10 +1,10 @@
-import { GTFS_JP_V4_SCHEMA } from "./schema.js";
+import { GTFS_JP_V4_SCHEMA } from './schema.js';
 import type {
   GtfsJpV4FileName,
   GtfsJpV4SchemaEntry,
   GtfsJpV4SchemaEntryByName,
   GtfsJpV4TableName,
-} from "./types.js";
+} from './types.js';
 
 export const GTFS_JP_V4_TABLE_NAMES = GTFS_JP_V4_SCHEMA.map(
   (schema) => schema.tableName,

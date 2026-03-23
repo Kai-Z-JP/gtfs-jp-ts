@@ -1,12 +1,18 @@
-import {Rows2, Search} from "lucide-react";
+import { Rows2, Search } from 'lucide-react';
 
-import type {GtfsRow} from "@gtfs-jp/types";
+import type { GtfsRow } from '@gtfs-jp/types';
 
-import {Button} from "../../components/ui/button";
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "../../components/ui/card";
-import {Input} from "../../components/ui/input";
-import {Label} from "../../components/ui/label";
-import {DataTable} from "./DataTable";
+import { Button } from '../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { DataTable } from './DataTable';
 
 type TableViewerPanelProps = {
   summary: string;
@@ -22,22 +28,22 @@ type TableViewerPanelProps = {
 };
 
 export function TableViewerPanel({
-                                   summary,
-                                   selectedTable,
-                                   tableNames,
-                                   limit,
-                                   rows,
-                                   busy,
-                                   isOpen,
-                                   onSelectedTableChange,
-                                   onLimitChange,
-                                   onReadRows,
-                                 }: TableViewerPanelProps): JSX.Element {
+  summary,
+  selectedTable,
+  tableNames,
+  limit,
+  rows,
+  busy,
+  isOpen,
+  onSelectedTableChange,
+  onLimitChange,
+  onReadRows,
+}: TableViewerPanelProps): JSX.Element {
   return (
     <Card className="border-black bg-white">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Rows2 className="h-4 w-4"/>
+          <Rows2 className="h-4 w-4" />
           Table Viewer
         </CardTitle>
         <CardDescription>{summary}</CardDescription>
@@ -75,9 +81,12 @@ export function TableViewerPanel({
           </div>
 
           <div className="flex items-end">
-            <Button className="w-full" disabled={busy || !isOpen || tableNames.length === 0}
-                    onClick={() => void onReadRows()}>
-              <Search className="h-4 w-4"/>
+            <Button
+              className="w-full"
+              disabled={busy || !isOpen || tableNames.length === 0}
+              onClick={() => void onReadRows()}
+            >
+              <Search className="h-4 w-4" />
               Read
             </Button>
           </div>
@@ -87,7 +96,7 @@ export function TableViewerPanel({
           {rows.length === 0 ? (
             <div className="px-4 py-6 text-sm text-neutral-600">0 rows</div>
           ) : (
-            <DataTable rows={rows}/>
+            <DataTable rows={rows} />
           )}
         </div>
       </CardContent>
