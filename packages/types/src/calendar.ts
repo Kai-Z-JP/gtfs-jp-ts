@@ -2,7 +2,15 @@ import type { GtfsDate, GtfsJpV4TableRow } from './types.js';
 import { toGtfsDate } from './time-date.js';
 
 // Day-of-week column names in GTFS calendar, indexed by Date#getDay() (0=Sun)
-const DOW_COLUMNS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+const DOW_COLUMNS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const;
 
 export interface ServiceCalendarIndex {
   /**

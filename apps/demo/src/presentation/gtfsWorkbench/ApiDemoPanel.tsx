@@ -3,10 +3,10 @@ import { useState } from 'react';
 import {
   buildServiceCalendarIndex,
   buildStopHierarchy,
-  toGtfsDate,
+  gtfsDateToIsoString,
   gtfsTimeToSeconds,
   secondsToGtfsTime,
-  gtfsDateToIsoString,
+  toGtfsDate,
 } from '@gtfs-jp/types';
 import type { GtfsValidationResult } from '@gtfs-jp/loader';
 
@@ -32,14 +32,22 @@ function TimeDateSection() {
   const backToTime = secondsToGtfsTime(secs);
 
   return (
-    <div className="rounded border p-4 space-y-2">
-      <h3 className="font-semibold text-sm">GtfsTime / GtfsDate utilities</h3>
+    <div className="space-y-2 rounded border p-4">
+      <h3 className="text-sm font-semibold">GtfsTime / GtfsDate utilities</h3>
       <p className="text-xs text-neutral-500">ライブラリ直接呼び出し (DB不要)</p>
-      <div className="text-xs font-mono space-y-1">
-        <p>toGtfsDate(today) → <span className="text-blue-700">{todayGtfs}</span></p>
-        <p>gtfsDateToIsoString({todayGtfs}) → <span className="text-blue-700">{todayIso}</span></p>
-        <p>gtfsTimeToSeconds({sampleTime}) → <span className="text-blue-700">{secs}</span></p>
-        <p>secondsToGtfsTime({secs}) → <span className="text-blue-700">{backToTime}</span></p>
+      <div className="space-y-1 font-mono text-xs">
+        <p>
+          toGtfsDate(today) → <span className="text-blue-700">{todayGtfs}</span>
+        </p>
+        <p>
+          gtfsDateToIsoString({todayGtfs}) → <span className="text-blue-700">{todayIso}</span>
+        </p>
+        <p>
+          gtfsTimeToSeconds({sampleTime}) → <span className="text-blue-700">{secs}</span>
+        </p>
+        <p>
+          secondsToGtfsTime({secs}) → <span className="text-blue-700">{backToTime}</span>
+        </p>
       </div>
     </div>
   );
@@ -67,17 +75,17 @@ function ValidateSection({ loader }: { loader: GtfsLoaderPort }) {
   };
 
   return (
-    <div className="rounded border p-4 space-y-3">
-      <h3 className="font-semibold text-sm">validate()</h3>
+    <div className="space-y-3 rounded border p-4">
+      <h3 className="text-sm font-semibold">validate()</h3>
       <p className="text-xs text-neutral-500">必須テーブルの存在チェック</p>
       <Button size="sm" onClick={run} disabled={busy}>
         {busy ? '実行中…' : '実行'}
       </Button>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {result && (
-        <div className="text-xs space-y-1">
+        <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
-            <Badge variant={result.valid ? 'default' : 'destructive'}>
+            <Badge variant={result.valid ? 'default' : 'outline'}>
               {result.valid ? 'VALID' : 'INVALID'}
             </Badge>
           </div>
@@ -122,14 +130,14 @@ function CountSection({ loader }: { loader: GtfsLoaderPort }) {
   };
 
   return (
-    <div className="rounded border p-4 space-y-3">
-      <h3 className="font-semibold text-sm">count() + where</h3>
+    <div className="space-y-3 rounded border p-4">
+      <h3 className="text-sm font-semibold">count() + where</h3>
       <p className="text-xs text-neutral-500">stops テーブルの件数と stop_name あり件数を取得</p>
       <Button size="sm" onClick={run} disabled={busy}>
         {busy ? '実行中…' : '実行'}
       </Button>
       {error && <p className="text-xs text-red-600">{error}</p>}
-      {result && <p className="text-xs font-mono">{result}</p>}
+      {result && <p className="font-mono text-xs">{result}</p>}
     </div>
   );
 }
@@ -148,7 +156,6 @@ function CalendarSection({ loader }: { loader: GtfsLoaderPort }) {
     setBusy(true);
     setError(null);
     try {
-      // readTable returns GtfsJpV4TableRow<TName>[] — no cast needed
       const calRows = await loader.readTable('calendar');
       const cdRows = await loader.readTable('calendar_dates');
       const index = buildServiceCalendarIndex(calRows, cdRows);
@@ -161,8 +168,8 @@ function CalendarSection({ loader }: { loader: GtfsLoaderPort }) {
   };
 
   return (
-    <div className="rounded border p-4 space-y-3">
-      <h3 className="font-semibold text-sm">buildServiceCalendarIndex()</h3>
+    <div className="space-y-3 rounded border p-4">
+      <h3 className="text-sm font-semibold">buildServiceCalendarIndex()</h3>
       <p className="text-xs text-neutral-500">指定日に運行するサービス ID 一覧</p>
       <div className="flex items-center gap-2">
         <input
@@ -170,7 +177,7 @@ function CalendarSection({ loader }: { loader: GtfsLoaderPort }) {
           value={date}
           onChange={(e) => setDate(e.target.value)}
           placeholder="YYYYMMDD"
-          className="rounded border px-2 py-1 text-xs font-mono w-32"
+          className="w-32 rounded border px-2 py-1 font-mono text-xs"
         />
         <Button size="sm" onClick={run} disabled={busy}>
           {busy ? '実行中…' : '実行'}
@@ -178,9 +185,9 @@ function CalendarSection({ loader }: { loader: GtfsLoaderPort }) {
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {result && (
-        <div className="text-xs space-y-1">
+        <div className="space-y-1 text-xs">
           <p>{result.length} サービスが運行中</p>
-          <p className="font-mono text-neutral-600 break-all">
+          <p className="break-all font-mono text-neutral-600">
             {result.slice(0, 20).join(', ')}
             {result.length > 20 ? ' …' : ''}
           </p>
@@ -225,15 +232,15 @@ function StopHierarchySection({ loader }: { loader: GtfsLoaderPort }) {
   };
 
   return (
-    <div className="rounded border p-4 space-y-3">
-      <h3 className="font-semibold text-sm">buildStopHierarchy()</h3>
+    <div className="space-y-3 rounded border p-4">
+      <h3 className="text-sm font-semibold">buildStopHierarchy()</h3>
       <p className="text-xs text-neutral-500">stops の親子ツリーを構築</p>
       <Button size="sm" onClick={run} disabled={busy}>
         {busy ? '実行中…' : '実行'}
       </Button>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {result && (
-        <div className="text-xs space-y-1">
+        <div className="space-y-1 text-xs">
           <p>
             全停留所: {result.total} 件 / ルートノード: {result.roots} 件
           </p>

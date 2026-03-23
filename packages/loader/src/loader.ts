@@ -148,7 +148,7 @@ class GtfsLoaderImpl<
       throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
     }
 
-    return (await this.readRows(tableName, options as TableReadOptions)) as Array<
+    return (await readTypedGtfsSourceRows(this.#session, tableName, options)) as Array<
       SourceReadRow<TName, TColumns>
     >;
   }
