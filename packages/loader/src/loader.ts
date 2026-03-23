@@ -36,6 +36,7 @@ import {
   buildLimitOffsetClause,
   buildOrderByClause,
   buildSelectClause,
+  buildWhereClause,
   quoteIdentifier,
 } from './internal/sql.js';
 import { readTypedGtfsSourceRows } from './internal/source-read.js';
@@ -50,11 +51,12 @@ const readRowsFromSession = async (
   assertIdentifier(tableName);
 
   const selectClause = buildSelectClause(options.columns);
+  const whereClause = buildWhereClause(options.where);
   const orderByClause = buildOrderByClause(options.orderBy);
-  const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
+  const { clause: limitOffsetClause, bind: limitBind } = buildLimitOffsetClause(options);
 
-  const sql = `${selectClause} FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
-  return await session.execRows<GtfsRow>(sql, bind);
+  const sql = `${selectClause} FROM ${quoteIdentifier(tableName)}${whereClause}${orderByClause}${limitOffsetClause}`;
+  return await session.execRows<GtfsRow>(sql, { ...options.bind, ...limitBind });
 };
 
 class GtfsLoaderImpl<

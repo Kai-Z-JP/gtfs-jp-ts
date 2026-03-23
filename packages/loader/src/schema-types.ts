@@ -36,8 +36,11 @@ export type SourceReadOptions<
   TColumns extends SourceReadColumns<TName> | undefined = undefined,
 > = {
   limit?: number;
+  offset?: number;
   orderBy?: string | readonly string[];
   columns?: TColumns;
+  where?: string;
+  bind?: SqlBindMap;
 };
 
 export type SourceReadRow<

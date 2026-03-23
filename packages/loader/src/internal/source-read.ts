@@ -1,9 +1,11 @@
 import { getGtfsJpV4TableSchema, type GtfsJpV4TableName, type GtfsRow } from '@gtfs-jp/types';
 
+import type { SqlBindMap } from '../sql-types.js';
 import {
   buildLimitOffsetClause,
   buildOrderByClause,
   buildSelectClause,
+  buildWhereClause,
   quoteIdentifier,
 } from './sql.js';
 import { SqliteSession } from './session.js';
@@ -63,17 +65,21 @@ export const readTypedGtfsSourceRows = async (
   tableName: GtfsJpV4TableName,
   options: {
     limit?: number;
+    offset?: number;
     orderBy?: string | readonly string[];
     columns?: readonly string[];
+    where?: string;
+    bind?: SqlBindMap;
   } = {},
 ): Promise<GtfsRow[]> => {
   const selectClause = buildSelectClause(options.columns);
+  const whereClause = buildWhereClause(options.where);
   const orderByClause = buildOrderByClause(options.orderBy);
-  const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
+  const { clause: limitOffsetClause, bind: limitBind } = buildLimitOffsetClause(options);
 
   const rows = await session.execRows<GtfsRow>(
-    `${selectClause} FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`,
-    bind,
+    `${selectClause} FROM ${quoteIdentifier(tableName)}${whereClause}${orderByClause}${limitOffsetClause}`,
+    { ...options.bind, ...limitBind },
   );
 
   return rows.map((row) => coerceRow(tableName, row));

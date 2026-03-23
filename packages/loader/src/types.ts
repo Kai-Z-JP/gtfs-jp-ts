@@ -30,6 +30,8 @@ export interface TableReadOptions {
   offset?: number;
   orderBy?: string | readonly string[];
   columns?: readonly string[];
+  where?: string;
+  bind?: SqlBindMap;
 }
 
 export interface LoadGtfsTablesOptions extends TableReadOptions {
