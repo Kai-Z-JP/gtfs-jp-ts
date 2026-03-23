@@ -1,4 +1,4 @@
-import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from '@gtfs-jp/types';
+import type { GtfsJpV4TableName, GtfsRow } from '@gtfs-jp/types';
 
 import type {
   GtfsSchemaDefinition,
@@ -94,10 +94,13 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
     tableName: TName,
     options?: TableReadOptions,
   ): Promise<Array<GtfsSchemaTableRow<TSchema, TName>>>;
-  readTable<TName extends GtfsJpV4TableName>(
+  readTable<
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
     tableName: TName,
-    options?: TableReadOptions,
-  ): Promise<Array<GtfsJpV4TableRow<TName>>>;
+    options?: Omit<TableReadOptions, 'columns'> & { columns?: TColumns },
+  ): Promise<Array<SourceReadRow<TName, TColumns>>>;
 
   readSource<
     TName extends GtfsJpV4TableName,

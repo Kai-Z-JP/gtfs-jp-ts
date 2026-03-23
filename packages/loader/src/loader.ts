@@ -1,7 +1,6 @@
 import {
   GTFS_JP_V4_TABLE_NAMES,
   type GtfsJpV4TableName,
-  type GtfsJpV4TableRow,
   type GtfsRow,
   isGtfsJpV4TableName,
 } from '@gtfs-jp/types';
@@ -136,15 +135,20 @@ class GtfsLoaderImpl<
     return (await this.readRows(tableName, options)) as Array<GtfsSchemaTableRow<TSchema, TName>>;
   }
 
-  async readTable<TName extends GtfsJpV4TableName>(
+  async readTable<
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined = undefined,
+  >(
     tableName: TName,
-    options: TableReadOptions = {},
-  ): Promise<Array<GtfsJpV4TableRow<TName>>> {
+    options: Omit<TableReadOptions, 'columns'> & { columns?: TColumns } = {},
+  ): Promise<Array<SourceReadRow<TName, TColumns>>> {
     if (this.#strictGtfsTableName && !isGtfsJpV4TableName(tableName)) {
       throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
     }
 
-    return (await this.readRows(tableName, options)) as Array<GtfsJpV4TableRow<TName>>;
+    return (await this.readRows(tableName, options as TableReadOptions)) as Array<
+      SourceReadRow<TName, TColumns>
+    >;
   }
 
   async readSource<
