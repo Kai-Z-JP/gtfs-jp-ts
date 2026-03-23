@@ -25,6 +25,11 @@ export interface CloseOptions {
   unlink?: boolean;
 }
 
+export interface CountOptions {
+  where?: string;
+  bind?: SqlBindMap;
+}
+
 export interface TableReadOptions {
   limit?: number;
   offset?: number;
@@ -113,6 +118,7 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
     file: File | Blob | ArrayBuffer | Uint8Array,
     options?: ImportGtfsZipOptions,
   ): Promise<ImportGtfsZipResult>;
+  count(tableName: string, options?: CountOptions): Promise<number>;
   query<TRow extends GtfsRow = GtfsRow>(sql: string, bind?: SqlBindMap): Promise<TRow[]>;
   exec(sql: string, bind?: SqlBindMap): Promise<void>;
 }

@@ -15,6 +15,7 @@ import type {
   SourceReadRow,
 } from './schema-types.js';
 import type {
+  CountOptions,
   GtfsLoader,
   GtfsLoaderOptions,
   ImportGtfsZipOptions,
@@ -266,6 +267,14 @@ class GtfsLoaderImpl<
       });
       throw error;
     }
+  }
+
+  async count(tableName: string, options: CountOptions = {}): Promise<number> {
+    assertIdentifier(tableName);
+    const whereClause = buildWhereClause(options.where);
+    const sql = `SELECT COUNT(*) AS _count FROM ${quoteIdentifier(tableName)}${whereClause}`;
+    const rows = await this.#session.execRows<{ _count: number }>(sql, options.bind ?? {});
+    return rows[0]?._count ?? 0;
   }
 
   async query<TRow extends GtfsRow = GtfsRow>(sql: string, bind: SqlBindMap = {}): Promise<TRow[]> {

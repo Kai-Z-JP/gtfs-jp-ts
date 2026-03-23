@@ -3,6 +3,7 @@ export { defineGtfsSchema, derivedTable } from './schema.js';
 
 export type {
   CloseOptions,
+  CountOptions,
   GtfsLoader,
   GtfsLoaderOptions,
   ImportGtfsZipOptions,
