@@ -1,14 +1,15 @@
 import {
   createGtfsLoader,
   type GtfsLoader,
+  type GtfsSchemaDefinition,
   type ImportProgressEvent,
   type ImportGtfsZipResult,
   type SqliteStorageMode,
-} from "@gtfs-jp/loader";
-import type {GtfsRow} from "@gtfs-jp/types";
+} from '@gtfs-jp/loader';
+import type { GtfsRow } from '@gtfs-jp/types';
 
-import type {GtfsLoaderPort} from "./GtfsLoaderPort";
-import {createSampleSchema, sampleRuntime} from "./schema";
+import type { GtfsLoaderPort } from './GtfsLoaderPort';
+import { createSampleSchema, sampleRuntime } from './schema';
 
 type GtfsLoaderAdapterOptions = {
   storage: SqliteStorageMode;
@@ -16,12 +17,11 @@ type GtfsLoaderAdapterOptions = {
 };
 
 export class GtfsLoaderAdapter implements GtfsLoaderPort {
-  private loader: GtfsLoader<any> | undefined;
+  private loader: GtfsLoader<GtfsSchemaDefinition> | undefined;
   private desiredDerivedTablesEnabled = true;
   private currentDerivedTablesEnabled = true;
 
-  constructor(private readonly options: GtfsLoaderAdapterOptions) {
-  }
+  constructor(private readonly options: GtfsLoaderAdapterOptions) {}
 
   async open(): Promise<void> {
     if (this.loader) {
@@ -56,20 +56,23 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
     return await loader.listTables();
   }
 
-  async importGtfsZip(file: File, onProgress: (event: ImportProgressEvent) => void): Promise<ImportGtfsZipResult> {
+  async importGtfsZip(
+    file: File,
+    onProgress: (event: ImportProgressEvent) => void,
+  ): Promise<ImportGtfsZipResult> {
     await this.recreateLoaderIfNeeded();
     const loader = this.requireLoader();
-    return await loader.importZip(file, {onProgress});
+    return await loader.importZip(file, { onProgress });
   }
 
   async readRows(tableName: string, limit: number): Promise<GtfsRow[]> {
     const loader = this.requireLoader();
-    return await loader.readRows(tableName, {limit});
+    return await loader.readRows(tableName, { limit });
   }
 
-  private requireLoader(): GtfsLoader<any> {
+  private requireLoader(): GtfsLoader<GtfsSchemaDefinition> {
     if (!this.loader) {
-      throw new Error("Loader is not open");
+      throw new Error('Loader is not open');
     }
 
     return this.loader;

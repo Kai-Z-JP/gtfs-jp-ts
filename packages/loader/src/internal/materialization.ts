@@ -1,4 +1,4 @@
-import {GTFS_JP_V4_TABLE_NAMES, type GtfsJpV4TableName, type GtfsRow,} from "@gtfs-jp/types";
+import { GTFS_JP_V4_TABLE_NAMES, type GtfsJpV4TableName, type GtfsRow } from '@gtfs-jp/types';
 
 import type {
   DerivedBuildContext,
@@ -12,15 +12,21 @@ import type {
   SourceReadColumns,
   SourceReadOptions,
   SourceReadRow,
-} from "../schema-types.js";
-import type {ImportProgressEmitter, ImportTargetKind, ImportTargetState, SqlBindMap, SqlBindValue} from "../types.js";
-import {quoteIdentifier} from "./sql.js";
-import {SqliteSession} from "./session.js";
-import {readTypedGtfsSourceRows} from "./source-read.js";
+} from '../schema-types.js';
+import type {
+  ImportProgressEmitter,
+  ImportTargetKind,
+  ImportTargetState,
+  SqlBindMap,
+  SqlBindValue,
+} from '../types.js';
+import { quoteIdentifier } from './sql.js';
+import { SqliteSession } from './session.js';
+import { readTypedGtfsSourceRows } from './source-read.js';
 
-const MATERIALIZATION_RUNS_TABLE = "_materialization_runs";
-const MATERIALIZATION_TABLES_TABLE = "_materialization_tables";
-const RESERVED_TABLE_PREFIX = "_materialization_";
+const MATERIALIZATION_RUNS_TABLE = '_materialization_runs';
+const MATERIALIZATION_TABLES_TABLE = '_materialization_tables';
+const RESERVED_TABLE_PREFIX = '_materialization_';
 const GTFS_SOURCE_SET = new Set<string>(GTFS_JP_V4_TABLE_NAMES);
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -32,7 +38,8 @@ type CompiledDerivedTable = {
   columnNames: readonly string[];
   primaryKey: readonly string[];
   indexes: readonly DerivedIndexDefinition[];
-  onError: "fail" | "skip";
+  onError: 'fail' | 'skip';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   build: DerivedTableBuild<any, any>;
 };
 
@@ -71,7 +78,10 @@ const assertIdentifier = (value: string, kind: string): void => {
   }
 };
 
-const normalizeColumns = (columns: DerivedColumnDefinitions, tableName: string): readonly string[] => {
+const normalizeColumns = (
+  columns: DerivedColumnDefinitions,
+  tableName: string,
+): readonly string[] => {
   const columnNames = Object.keys(columns);
   if (columnNames.length === 0) {
     throw new Error(`Derived table "${tableName}" must define at least one column`);
@@ -80,7 +90,7 @@ const normalizeColumns = (columns: DerivedColumnDefinitions, tableName: string):
   for (const columnName of columnNames) {
     assertIdentifier(columnName, `column name in ${tableName}`);
     const column = columns[columnName];
-    if (column.kind !== "string" && column.kind !== "number") {
+    if (column.kind !== 'string' && column.kind !== 'number') {
       throw new Error(`Derived table "${tableName}" column "${columnName}" has an invalid kind`);
     }
   }
@@ -104,10 +114,12 @@ const normalizeIndexes = (
     }
     for (const columnName of index.columns) {
       if (!columnSet.has(columnName)) {
-        throw new Error(`Derived table "${tableName}" index references unknown column "${columnName}"`);
+        throw new Error(
+          `Derived table "${tableName}" index references unknown column "${columnName}"`,
+        );
       }
     }
-    const normalizedName = index.name ?? `${tableName}_${index.columns.join("_")}_idx`;
+    const normalizedName = index.name ?? `${tableName}_${index.columns.join('_')}_idx`;
     assertIdentifier(normalizedName, `index name in ${tableName}`);
     return {
       name: normalizedName,
@@ -117,9 +129,13 @@ const normalizeIndexes = (
   });
 };
 
-const toSortedDerivedTables = (derivedTables: readonly CompiledDerivedTable[]): readonly CompiledDerivedTable[] => {
+const toSortedDerivedTables = (
+  derivedTables: readonly CompiledDerivedTable[],
+): readonly CompiledDerivedTable[] => {
   const tableByName = new Map(derivedTables.map((table) => [table.name, table]));
-  const remaining = new Map(derivedTables.map((table) => [table.name, new Set(table.derivedDependencies)]));
+  const remaining = new Map(
+    derivedTables.map((table) => [table.name, new Set(table.derivedDependencies)]),
+  );
   const ordered: CompiledDerivedTable[] = [];
   const ready = derivedTables
     .filter((table) => table.derivedDependencies.length === 0)
@@ -151,17 +167,15 @@ const toSortedDerivedTables = (derivedTables: readonly CompiledDerivedTable[]): 
 
   if (ordered.length !== derivedTables.length) {
     const unresolved = [...remaining.keys()].sort();
-    throw new Error(`Derived table dependencies contain a cycle: ${unresolved.join(", ")}`);
+    throw new Error(`Derived table dependencies contain a cycle: ${unresolved.join(', ')}`);
   }
 
   return ordered;
 };
 
-export const compileGtfsSchema = (
-  schema: GtfsSchemaDefinition | undefined,
-): CompiledGtfsSchema => {
-  const normalizedSchema = schema ?? { sources: "gtfs-jp-v4", derivedTables: [] };
-  if ((normalizedSchema.sources ?? "gtfs-jp-v4") !== "gtfs-jp-v4") {
+export const compileGtfsSchema = (schema: GtfsSchemaDefinition | undefined): CompiledGtfsSchema => {
+  const normalizedSchema = schema ?? { sources: 'gtfs-jp-v4', derivedTables: [] };
+  if ((normalizedSchema.sources ?? 'gtfs-jp-v4') !== 'gtfs-jp-v4') {
     throw new Error(`Unsupported source type: ${String(normalizedSchema.sources)}`);
   }
 
@@ -171,7 +185,7 @@ export const compileGtfsSchema = (
   const derivedTableNameSet = new Set(derivedTableNames);
 
   const compiled = rawDerivedTables.map<CompiledDerivedTable>((table) => {
-    assertIdentifier(table.name, "derived table name");
+    assertIdentifier(table.name, 'derived table name');
     if (table.name.startsWith(RESERVED_TABLE_PREFIX)) {
       throw new Error(`Derived table "${table.name}" uses a reserved prefix`);
     }
@@ -188,7 +202,9 @@ export const compileGtfsSchema = (
     const primaryKey = table.primaryKey ?? [];
     for (const columnName of primaryKey) {
       if (!columnSet.has(columnName)) {
-        throw new Error(`Derived table "${table.name}" primary key references unknown column "${columnName}"`);
+        throw new Error(
+          `Derived table "${table.name}" primary key references unknown column "${columnName}"`,
+        );
       }
     }
 
@@ -198,19 +214,23 @@ export const compileGtfsSchema = (
     for (const dependencyName of dependsOn) {
       assertIdentifier(dependencyName, `dependency in ${table.name}`);
       if (!GTFS_SOURCE_SET.has(dependencyName) && !derivedTableNameSet.has(dependencyName)) {
-        throw new Error(`Derived table "${table.name}" depends on unknown table "${dependencyName}"`);
+        throw new Error(
+          `Derived table "${table.name}" depends on unknown table "${dependencyName}"`,
+        );
       }
     }
 
     return {
       name: table.name,
       dependsOn,
-      derivedDependencies: dependsOn.filter((dependencyName) => derivedTableNameSet.has(dependencyName)),
+      derivedDependencies: dependsOn.filter((dependencyName) =>
+        derivedTableNameSet.has(dependencyName),
+      ),
       columns: table.columns,
       columnNames,
       primaryKey,
       indexes,
-      onError: table.onError ?? "fail",
+      onError: table.onError ?? 'fail',
       build: table.build,
     };
   });
@@ -223,12 +243,12 @@ export const compileGtfsSchema = (
 
 const emitTargetEvent = (
   emit: ImportProgressEmitter,
-  phase: "import" | "derive",
+  phase: 'import' | 'derive',
   targetKind: ImportTargetKind,
   targetName: string,
   state: ImportTargetState,
   message: string,
-  extra: Partial<Pick<MaterializationTableMetric, "rowsWritten">> = {},
+  extra: Partial<Pick<MaterializationTableMetric, 'rowsWritten'>> = {},
 ): void => {
   emit({
     phase,
@@ -240,7 +260,8 @@ const emitTargetEvent = (
   });
 };
 
-const columnSqlType = (column: DerivedColumnDefinition): string => (column.kind === "number" ? "INTEGER" : "TEXT");
+const columnSqlType = (column: DerivedColumnDefinition): string =>
+  column.kind === 'number' ? 'INTEGER' : 'TEXT';
 
 const createDerivedTable = async (
   session: SqliteSession,
@@ -251,23 +272,26 @@ const createDerivedTable = async (
   const columnSql = table.columnNames
     .map((columnName) => {
       const column = table.columns[columnName];
-      const notNull = column.nullable === false ? " NOT NULL" : "";
+      const notNull = column.nullable === false ? ' NOT NULL' : '';
       return `${quoteIdentifier(columnName)} ${columnSqlType(column)}${notNull}`;
     })
-    .join(", ");
+    .join(', ');
 
   const primaryKeySql =
     table.primaryKey.length > 0
-      ? `, PRIMARY KEY (${table.primaryKey.map((columnName) => quoteIdentifier(columnName)).join(", ")})`
-      : "";
+      ? `, PRIMARY KEY (${table.primaryKey.map((columnName) => quoteIdentifier(columnName)).join(', ')})`
+      : '';
 
   await session.exec(`CREATE TABLE ${quoteIdentifier(table.name)} (${columnSql}${primaryKeySql});`);
 };
 
-const createIndexes = async (session: SqliteSession, table: CompiledDerivedTable): Promise<void> => {
+const createIndexes = async (
+  session: SqliteSession,
+  table: CompiledDerivedTable,
+): Promise<void> => {
   for (const index of table.indexes) {
-    const unique = index.unique ? "UNIQUE " : "";
-    const columnsSql = index.columns.map((columnName) => quoteIdentifier(columnName)).join(", ");
+    const unique = index.unique ? 'UNIQUE ' : '';
+    const columnsSql = index.columns.map((columnName) => quoteIdentifier(columnName)).join(', ');
     await session.exec(
       `CREATE ${unique}INDEX IF NOT EXISTS ${quoteIdentifier(index.name as string)} ON ${quoteIdentifier(table.name)} (${columnsSql});`,
     );
@@ -282,13 +306,13 @@ const countRows = async (session: SqliteSession, tableName: string): Promise<num
 };
 
 const resolveSqlBind = async (
-  bind: DerivedSqlBuild["bind"],
+  bind: DerivedSqlBuild['bind'],
   context: DerivedBuildContext<Record<string, unknown>>,
 ): Promise<SqlBindMap> => {
   if (!bind) {
     return {};
   }
-  return typeof bind === "function" ? await bind(context) : bind;
+  return typeof bind === 'function' ? await bind(context) : bind;
 };
 
 const toAsyncIterable = async function* <TRow>(
@@ -319,14 +343,16 @@ const normalizeValue = (
     return null;
   }
 
-  if (column.kind === "number") {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(`Derived table "${tableName}" column "${columnName}" must be a finite number`);
+  if (column.kind === 'number') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error(
+        `Derived table "${tableName}" column "${columnName}" must be a finite number`,
+      );
     }
     return value;
   }
 
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     throw new Error(`Derived table "${tableName}" column "${columnName}" must be a string`);
   }
 
@@ -355,11 +381,11 @@ const insertJsBatch = async (
         );
         return `:${key}`;
       });
-      return `(${placeholders.join(", ")})`;
+      return `(${placeholders.join(', ')})`;
     })
-    .join(", ");
+    .join(', ');
 
-  const columnsSql = table.columnNames.map((columnName) => quoteIdentifier(columnName)).join(", ");
+  const columnsSql = table.columnNames.map((columnName) => quoteIdentifier(columnName)).join(', ');
   await session.exec(
     `INSERT INTO ${quoteIdentifier(table.name)} (${columnsSql}) VALUES ${valuesSql};`,
     bind,
@@ -374,7 +400,9 @@ const readSourceRows = async <
   tableName: TName,
   options: SourceReadOptions<TName, TColumns> = {},
 ): Promise<Array<SourceReadRow<TName, TColumns>>> =>
-  (await readTypedGtfsSourceRows(session, tableName, options)) as Array<SourceReadRow<TName, TColumns>>;
+  (await readTypedGtfsSourceRows(session, tableName, options)) as Array<
+    SourceReadRow<TName, TColumns>
+  >;
 
 const createBuilderContext = (
   session: SqliteSession,
@@ -408,7 +436,10 @@ const createBuilderContext = (
   },
   query: async <TRow extends GtfsRow = GtfsRow>(sql: string, bind: SqlBindMap = {}) =>
     await session.execRows<TRow>(sql, bind),
-  readSource: async <TName extends GtfsJpV4TableName, TColumns extends SourceReadColumns<TName> | undefined>(
+  readSource: async <
+    TName extends GtfsJpV4TableName,
+    TColumns extends SourceReadColumns<TName> | undefined,
+  >(
     sourceTableName: TName,
     options: SourceReadOptions<TName, TColumns> = {},
   ): Promise<Array<SourceReadRow<TName, TColumns>>> => {
@@ -444,10 +475,10 @@ const createBuilderContext = (
   emitProgress: (progress) => {
     emitTargetEvent(
       emit,
-      "derive",
-      "derived",
+      'derive',
+      'derived',
       tableName,
-      progress.state ?? "running",
+      progress.state ?? 'running',
       progress.message,
       { rowsWritten: progress.rowsWritten ?? 0 },
     );
@@ -466,7 +497,9 @@ const ensureDeclaredColumns = async (
   session: SqliteSession,
   table: CompiledDerivedTable,
 ): Promise<void> => {
-  const rows = await session.execRows<{ name: string }>(`PRAGMA table_info(${quoteIdentifier(table.name)});`);
+  const rows = await session.execRows<{ name: string }>(
+    `PRAGMA table_info(${quoteIdentifier(table.name)});`,
+  );
   const actualColumns = new Set(rows.map((row) => row.name));
   for (const columnName of table.columnNames) {
     if (!actualColumns.has(columnName)) {
@@ -543,7 +576,7 @@ export const runDerivedMaterialization = async ({
     {
       run_id: runId,
       started_at: startedAt,
-      status: "running",
+      status: 'running',
     },
   );
 
@@ -558,14 +591,23 @@ export const runDerivedMaterialization = async ({
   let derivedRowsWritten = 0;
 
   for (const [tableIndex, table] of compiledSchema.derivedTables.entries()) {
-    const blockedDependency = table.derivedDependencies.find((dependencyName) => blockedDependencies.has(dependencyName));
+    const blockedDependency = table.derivedDependencies.find((dependencyName) =>
+      blockedDependencies.has(dependencyName),
+    );
     if (blockedDependency) {
       const skipReason = `dependency skipped: ${blockedDependency}`;
-      emitTargetEvent(emit, "derive", "derived", table.name, "skipped", `Derived skipped: ${table.name}`);
+      emitTargetEvent(
+        emit,
+        'derive',
+        'derived',
+        table.name,
+        'skipped',
+        `Derived skipped: ${table.name}`,
+      );
       const metric: MaterializationTableMetric = {
-        targetKind: "derived",
+        targetKind: 'derived',
         tableName: table.name,
-        state: "skipped",
+        state: 'skipped',
         rowsWritten: 0,
         skipReason,
       };
@@ -576,7 +618,14 @@ export const runDerivedMaterialization = async ({
       continue;
     }
 
-    emitTargetEvent(emit, "derive", "derived", table.name, "running", `Derived started: ${table.name}`);
+    emitTargetEvent(
+      emit,
+      'derive',
+      'derived',
+      table.name,
+      'running',
+      `Derived started: ${table.name}`,
+    );
     const savepointName = `derived_${tableIndex}`;
     await session.exec(`SAVEPOINT ${savepointName};`);
 
@@ -584,18 +633,20 @@ export const runDerivedMaterialization = async ({
       const context = createBuilderContext(session, runtime, emit, table.name);
       let rowsWritten = 0;
 
-      if (table.build.kind === "sql") {
+      if (table.build.kind === 'sql') {
         await createDerivedTable(session, table);
         const bind = await resolveSqlBind(table.build.bind, context);
-        const columnsSql = table.columnNames.map((columnName) => quoteIdentifier(columnName)).join(", ");
+        const columnsSql = table.columnNames
+          .map((columnName) => quoteIdentifier(columnName))
+          .join(', ');
         await session.exec(
           `INSERT INTO ${quoteIdentifier(table.name)} (${columnsSql}) ${table.build.selectSql};`,
           bind,
         );
-      } else if (table.build.kind === "sqlScript") {
+      } else if (table.build.kind === 'sqlScript') {
         await session.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(table.name)};`);
         const statements =
-          typeof table.build.statements === "function"
+          typeof table.build.statements === 'function'
             ? await table.build.statements(context)
             : table.build.statements;
         for (const statement of statements) {
@@ -633,27 +684,35 @@ export const runDerivedMaterialization = async ({
       derivedRowsWritten += rowsWritten;
 
       const metric: MaterializationTableMetric = {
-        targetKind: "derived",
+        targetKind: 'derived',
         tableName: table.name,
-        state: "done",
+        state: 'done',
         rowsWritten,
       };
       await session.exec(`RELEASE SAVEPOINT ${savepointName};`);
       tableMetrics.push(metric);
       await insertTableMetric(session, runId, metric);
-      emitTargetEvent(emit, "derive", "derived", table.name, "done", `Derived done: ${table.name}`, {
-        rowsWritten,
-      });
+      emitTargetEvent(
+        emit,
+        'derive',
+        'derived',
+        table.name,
+        'done',
+        `Derived done: ${table.name}`,
+        {
+          rowsWritten,
+        },
+      );
     } catch (error) {
       await session.exec(`ROLLBACK TO SAVEPOINT ${savepointName};`);
       await session.exec(`RELEASE SAVEPOINT ${savepointName};`);
       const message = error instanceof Error ? error.message : String(error);
 
-      if (table.onError === "skip") {
+      if (table.onError === 'skip') {
         const metric: MaterializationTableMetric = {
-          targetKind: "derived",
+          targetKind: 'derived',
           tableName: table.name,
-          state: "skipped",
+          state: 'skipped',
           rowsWritten: 0,
           error: message,
           skipReason: message,
@@ -662,7 +721,14 @@ export const runDerivedMaterialization = async ({
         skippedDerivedTables.push(table.name);
         blockedDependencies.set(table.name, message);
         await insertTableMetric(session, runId, metric);
-        emitTargetEvent(emit, "derive", "derived", table.name, "skipped", `Derived skipped: ${table.name}`);
+        emitTargetEvent(
+          emit,
+          'derive',
+          'derived',
+          table.name,
+          'skipped',
+          `Derived skipped: ${table.name}`,
+        );
         continue;
       }
 
@@ -675,20 +741,27 @@ export const runDerivedMaterialization = async ({
         {
           run_id: runId,
           finished_at: new Date().toISOString(),
-          status: "error",
+          status: 'error',
           error: message,
         },
       );
 
       const metric: MaterializationTableMetric = {
-        targetKind: "derived",
+        targetKind: 'derived',
         tableName: table.name,
-        state: "error",
+        state: 'error',
         rowsWritten: 0,
         error: message,
       };
       await insertTableMetric(session, runId, metric);
-      emitTargetEvent(emit, "derive", "derived", table.name, "error", `Derived failed: ${table.name}`);
+      emitTargetEvent(
+        emit,
+        'derive',
+        'derived',
+        table.name,
+        'error',
+        `Derived failed: ${table.name}`,
+      );
       throw error;
     }
   }
@@ -706,8 +779,8 @@ export const runDerivedMaterialization = async ({
     {
       run_id: runId,
       finished_at: new Date().toISOString(),
-      status: "done",
-      source_tables_imported: sourceMetrics.filter((metric) => metric.state === "done").length,
+      status: 'done',
+      source_tables_imported: sourceMetrics.filter((metric) => metric.state === 'done').length,
       source_rows_imported: sourceMetrics.reduce((sum, metric) => sum + metric.rowsWritten, 0),
       derived_tables_materialized: derivedTablesMaterialized,
       derived_rows_written: derivedRowsWritten,

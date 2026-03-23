@@ -3,7 +3,7 @@ import type {
   DerivedTableDefinition,
   GtfsSchemaDefinition,
   MaterializationSource,
-} from "./schema-types.js";
+} from './schema-types.js';
 
 export const derivedTable = <
   const TName extends string,
@@ -15,6 +15,7 @@ export const derivedTable = <
 
 export const defineGtfsSchema = <
   TRuntime extends Record<string, unknown> = Record<string, unknown>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const TDerivedTables extends readonly DerivedTableDefinition<any, any, any>[] = readonly [],
 >(
   definition: {
@@ -22,6 +23,6 @@ export const defineGtfsSchema = <
     derivedTables?: TDerivedTables;
   } = {},
 ): GtfsSchemaDefinition<TRuntime, TDerivedTables> => ({
-  sources: definition.sources ?? "gtfs-jp-v4",
+  sources: definition.sources ?? 'gtfs-jp-v4',
   derivedTables: definition.derivedTables ?? ([] as unknown as TDerivedTables),
 });

@@ -1,15 +1,14 @@
-import {useState} from "react";
+import { useState } from 'react';
 
-import {Badge} from "./components/ui/badge";
-import {Button} from "./components/ui/button";
-import {useGtfsWorkbench} from "./application/gtfsWorkbench";
-import {TableViewerPanel, WorkflowPanel} from "./presentation/gtfsWorkbench";
+import { Button } from './components/ui/button';
+import { useGtfsWorkbench } from './application/gtfsWorkbench';
+import { TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
 
-type MainTab = "workflow" | "viewer";
+type MainTab = 'workflow' | 'viewer';
 
 export default function App(): JSX.Element {
-  const [mainTab, setMainTab] = useState<MainTab>("workflow");
-  const {state, actions} = useGtfsWorkbench();
+  const [mainTab, setMainTab] = useState<MainTab>('workflow');
+  const { state, actions } = useGtfsWorkbench();
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -22,15 +21,21 @@ export default function App(): JSX.Element {
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          <Button variant={mainTab === "workflow" ? "default" : "outline"} onClick={() => setMainTab("workflow")}>
+          <Button
+            variant={mainTab === 'workflow' ? 'default' : 'outline'}
+            onClick={() => setMainTab('workflow')}
+          >
             Load
           </Button>
-          <Button variant={mainTab === "viewer" ? "default" : "outline"} onClick={() => setMainTab("viewer")}>
+          <Button
+            variant={mainTab === 'viewer' ? 'default' : 'outline'}
+            onClick={() => setMainTab('viewer')}
+          >
             Table Viewer
           </Button>
         </div>
 
-        {mainTab === "workflow" ? (
+        {mainTab === 'workflow' ? (
           <WorkflowPanel
             storage={state.storage}
             derivedTablesEnabled={state.derivedTablesEnabled}
