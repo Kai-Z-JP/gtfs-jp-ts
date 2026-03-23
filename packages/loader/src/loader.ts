@@ -1,4 +1,5 @@
 import {
+  GTFS_JP_V4_SCHEMA,
   GTFS_JP_V4_TABLE_NAMES,
   type GtfsJpV4TableName,
   type GtfsRow,
@@ -17,6 +18,7 @@ import type {
   CountOptions,
   GtfsLoader,
   GtfsLoaderOptions,
+  GtfsValidationResult,
   ImportGtfsZipOptions,
   ImportGtfsZipResult,
   LoadGtfsTablesOptions,
@@ -271,6 +273,29 @@ class GtfsLoaderImpl<
       });
       throw error;
     }
+  }
+
+  async validate(): Promise<GtfsValidationResult> {
+    const present = new Set(await this.listGtfsTables());
+    const presentTables = GTFS_JP_V4_TABLE_NAMES.filter((name) => present.has(name));
+    const missingRequired: GtfsJpV4TableName[] = [];
+    const missingConditionalRequired: GtfsJpV4TableName[] = [];
+
+    for (const entry of GTFS_JP_V4_SCHEMA) {
+      if (present.has(entry.tableName)) continue;
+      if (entry.requirement === 'required') {
+        missingRequired.push(entry.tableName);
+      } else if (entry.requirement === 'conditional_required') {
+        missingConditionalRequired.push(entry.tableName);
+      }
+    }
+
+    return {
+      valid: missingRequired.length === 0,
+      missingRequired,
+      missingConditionalRequired,
+      presentTables,
+    };
   }
 
   async count(tableName: string, options: CountOptions = {}): Promise<number> {

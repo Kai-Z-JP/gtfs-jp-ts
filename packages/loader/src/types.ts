@@ -122,8 +122,17 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
     options?: ImportGtfsZipOptions,
   ): Promise<ImportGtfsZipResult>;
   count(tableName: string, options?: CountOptions): Promise<number>;
+  validate(): Promise<GtfsValidationResult>;
   query<TRow extends GtfsRow = GtfsRow>(sql: string, bind?: SqlBindMap): Promise<TRow[]>;
   exec(sql: string, bind?: SqlBindMap): Promise<void>;
+}
+
+export interface GtfsValidationResult {
+  /** true if all required tables are present */
+  valid: boolean;
+  missingRequired: GtfsJpV4TableName[];
+  missingConditionalRequired: GtfsJpV4TableName[];
+  presentTables: GtfsJpV4TableName[];
 }
 
 export type ImportProgressEmitter = (event: ImportProgressEvent) => void;

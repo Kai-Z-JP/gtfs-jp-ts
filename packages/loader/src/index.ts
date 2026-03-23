@@ -5,6 +5,7 @@ export type {
   CloseOptions,
   CountOptions,
   GtfsLoader,
+  GtfsValidationResult,
   GtfsLoaderOptions,
   ImportGtfsZipOptions,
   ImportGtfsZipResult,
