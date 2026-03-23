@@ -8,25 +8,15 @@ import {
   secondsToGtfsTime,
   gtfsDateToIsoString,
 } from '@gtfs-jp/types';
-import type { GtfsJpV4TableName, GtfsJpV4TableRow } from '@gtfs-jp/types';
-import type { GtfsValidationResult, CountOptions } from '@gtfs-jp/loader';
+import type { GtfsValidationResult } from '@gtfs-jp/loader';
 
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type LoaderPort = {
-  validate(): Promise<GtfsValidationResult>;
-  count(tableName: string, options?: CountOptions): Promise<number>;
-  readTable<TName extends GtfsJpV4TableName>(tableName: TName): Promise<GtfsJpV4TableRow<TName>[]>;
-};
+import type { GtfsLoaderPort } from '../../infrastructure/gtfsLoader';
 
 type Props = {
   isOpen: boolean;
-  loader: LoaderPort | null;
+  loader: GtfsLoaderPort | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -59,7 +49,7 @@ function TimeDateSection() {
 // Section: Validate
 // ---------------------------------------------------------------------------
 
-function ValidateSection({ loader }: { loader: LoaderPort }) {
+function ValidateSection({ loader }: { loader: GtfsLoaderPort }) {
   const [result, setResult] = useState<GtfsValidationResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +100,7 @@ function ValidateSection({ loader }: { loader: LoaderPort }) {
 // Section: Count with where
 // ---------------------------------------------------------------------------
 
-function CountSection({ loader }: { loader: LoaderPort }) {
+function CountSection({ loader }: { loader: GtfsLoaderPort }) {
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +138,7 @@ function CountSection({ loader }: { loader: LoaderPort }) {
 // Section: Calendar Index
 // ---------------------------------------------------------------------------
 
-function CalendarSection({ loader }: { loader: LoaderPort }) {
+function CalendarSection({ loader }: { loader: GtfsLoaderPort }) {
   const [result, setResult] = useState<string[] | null>(null);
   const [date, setDate] = useState<string>(toGtfsDate(new Date()));
   const [busy, setBusy] = useState(false);
@@ -204,7 +194,7 @@ function CalendarSection({ loader }: { loader: LoaderPort }) {
 // Section: Stop Hierarchy
 // ---------------------------------------------------------------------------
 
-function StopHierarchySection({ loader }: { loader: LoaderPort }) {
+function StopHierarchySection({ loader }: { loader: GtfsLoaderPort }) {
   const [result, setResult] = useState<{
     roots: number;
     total: number;
