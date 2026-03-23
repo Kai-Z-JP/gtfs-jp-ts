@@ -1,7 +1,7 @@
-import { defineConfig } from "tsup";
+import {defineConfig} from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/parse-worker.ts"],
+  entry: ["src/index.ts", "src/parse-worker.ts", "src/vite.ts"],
   format: ["esm"],
   platform: "browser",
   dts: true,

@@ -11,6 +11,17 @@ npm install @gtfs-jp/loader @gtfs-jp/types
 
 `@sqlite.org/sqlite-wasm` が peer dependency として必要です。
 
+Vite を使う場合は、SQLite WASM の build asset 名を固定するために `@gtfs-jp/loader/vite` の plugin を追加してください。
+
+```ts
+import {defineConfig} from "vite";
+import {gtfsLoaderPlugin} from "@gtfs-jp/loader/vite";
+
+export default defineConfig({
+  plugins: [gtfsLoaderPlugin()],
+});
+```
+
 ## Basic Usage
 
 ```ts
@@ -51,6 +62,9 @@ OPFS を使用するには、ページに以下のヘッダーが必要です:
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
+
+Vite build/preview では上記に加えて `gtfsLoaderPlugin()` を使い、`sqlite3.wasm` と
+`sqlite3-opfs-async-proxy.js` が `assets/` 配下の固定名で配信されるようにしてください。
 
 ## Import Options
 

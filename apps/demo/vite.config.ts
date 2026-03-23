@@ -1,11 +1,9 @@
 import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react-swc";
+import {gtfsLoaderPlugin} from "@gtfs-jp/loader/vite";
 
 export default defineConfig({
-  plugins: [react()],
-  optimizeDeps: {
-    exclude: ["@sqlite.org/sqlite-wasm", "@gtfs-jp/loader"],
-  },
+  plugins: [react(), gtfsLoaderPlugin()],
   server: {
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
