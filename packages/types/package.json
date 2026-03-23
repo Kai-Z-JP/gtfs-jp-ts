@@ -1,6 +1,6 @@
 {
   "name": "@gtfs-jp/types",
-  "version": "4.0.0-beta.4",
+  "version": "4.0.0-beta.5",
   "description": "GTFS-JP v4 table schema and type definitions for TypeScript",
   "type": "module",
   "license": "MIT",
