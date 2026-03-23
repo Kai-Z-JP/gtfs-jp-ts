@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import type { GtfsRow } from '@gtfs-jp/types';
 import type { ImportProgressEvent, SqliteStorageMode } from '@gtfs-jp/loader';
@@ -192,11 +192,17 @@ const handleError = (
   setStatusMessage(`${prefix}: ${message}`, 'error');
 };
 
-export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchActions } {
+export function useGtfsWorkbench(): {
+  state: WorkbenchState;
+  actions: WorkbenchActions;
+  loader: GtfsLoaderPort | null;
+} {
   const opfsSupport = useMemo(() => detectOpfsSupport(), []);
   const [state, dispatch] = useReducer(workbenchReducer, opfsSupport, createInitialWorkbenchState);
 
   const loaderRef = useRef<GtfsLoaderPort | undefined>(undefined);
+  // Mirrors loaderRef as React state so components can read it during render
+  const [loader, setLoader] = useState<GtfsLoaderPort | null>(null);
 
   const setStatusMessage = useCallback((message: string, type: StatusType) => {
     dispatch({ type: 'set-status', status: { message, type } });
@@ -214,6 +220,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
 
     await loaderRef.current.close();
     loaderRef.current = undefined;
+    setLoader(null);
   }, []);
 
   useEffect(() => {
@@ -258,6 +265,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
       nextLoader.setDerivedTablesEnabled(state.derivedTablesEnabled);
       await nextLoader.open();
       loaderRef.current = nextLoader;
+      setLoader(nextLoader);
 
       dispatch({ type: 'connection-opened' });
       setStatusMessage(
@@ -416,5 +424,6 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
   return {
     state,
     actions,
+    loader,
   };
 }

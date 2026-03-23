@@ -5,8 +5,10 @@ import {
   type ImportProgressEvent,
   type ImportGtfsZipResult,
   type SqliteStorageMode,
+  type GtfsValidationResult,
+  type CountOptions,
 } from '@gtfs-jp/loader';
-import type { GtfsRow } from '@gtfs-jp/types';
+import type { GtfsRow, GtfsJpV4TableName, GtfsJpV4TableRow } from '@gtfs-jp/types';
 
 import type { GtfsLoaderPort } from './GtfsLoaderPort';
 import { createSampleSchema, sampleRuntime } from './schema';
@@ -68,6 +70,26 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
   async readRows(tableName: string, limit: number): Promise<GtfsRow[]> {
     const loader = this.requireLoader();
     return await loader.readRows(tableName, { limit });
+  }
+
+  async readTable<TName extends GtfsJpV4TableName>(tableName: TName): Promise<GtfsJpV4TableRow<TName>[]> {
+    const loader = this.requireLoader();
+    return await loader.readTable(tableName) as GtfsJpV4TableRow<TName>[];
+  }
+
+  async validate(): Promise<GtfsValidationResult> {
+    const loader = this.requireLoader();
+    return await loader.validate();
+  }
+
+  async count(tableName: string, options?: CountOptions): Promise<number> {
+    const loader = this.requireLoader();
+    return await loader.count(tableName, options);
+  }
+
+  async query(sql: string): Promise<GtfsRow[]> {
+    const loader = this.requireLoader();
+    return await loader.query(sql);
   }
 
   private requireLoader(): GtfsLoader<GtfsSchemaDefinition> {

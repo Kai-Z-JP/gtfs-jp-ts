@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildStopHierarchy } from '../index.js';
-import type { StopRow } from '../index.js';
+import type { GtfsJpV4TableRow, StopRow } from '../index.js';
 
-const stops: StopRow[] = [
-  { stop_id: 'station_A', stop_name: 'Station A', location_type: 1 },
-  { stop_id: 'platform_A1', stop_name: 'Platform 1', parent_station: 'station_A', location_type: 0 },
-  { stop_id: 'platform_A2', stop_name: 'Platform 2', parent_station: 'station_A', location_type: 0 },
-  { stop_id: 'stop_B', stop_name: 'Stop B', location_type: 0 },
-  { stop_id: 'stop_C', stop_name: 'Stop C', parent_station: 'stop_B', location_type: 0 },
+// Using the canonical GTFS row type directly — no separate interface needed
+type StopsRow = GtfsJpV4TableRow<'stops'>;
+
+const stops: StopsRow[] = [
+  { stop_id: 'station_A', stop_name: 'Station A', stop_lat: 35.0, stop_lon: 135.0, zone_id: 'Z1', location_type: 1, platform_code: '' },
+  { stop_id: 'platform_A1', stop_name: 'Platform 1', stop_lat: 35.0, stop_lon: 135.0, zone_id: 'Z1', parent_station: 'station_A', location_type: 0, platform_code: '1' },
+  { stop_id: 'platform_A2', stop_name: 'Platform 2', stop_lat: 35.0, stop_lon: 135.0, zone_id: 'Z1', parent_station: 'station_A', location_type: 0, platform_code: '2' },
+  { stop_id: 'stop_B', stop_name: 'Stop B', stop_lat: 35.1, stop_lon: 135.1, zone_id: 'Z1', location_type: 0, platform_code: '' },
+  { stop_id: 'stop_C', stop_name: 'Stop C', stop_lat: 35.1, stop_lon: 135.1, zone_id: 'Z1', parent_station: 'stop_B', location_type: 0, platform_code: '' },
 ];
 
 describe('buildStopHierarchy', () => {
@@ -45,6 +48,7 @@ describe('buildStopHierarchy', () => {
   });
 
   it('treats unknown parent_station as root', () => {
+    // StopRow is still available as a minimal structural interface for custom use
     const orphan: StopRow[] = [{ stop_id: 'orphan', parent_station: 'nonexistent' }];
     const { roots, byId } = buildStopHierarchy(orphan);
     expect(roots.map((n) => n.row.stop_id)).toEqual(['orphan']);

@@ -1,28 +1,8 @@
-import type { GtfsDate } from './types.js';
+import type { GtfsDate, GtfsJpV4TableRow } from './types.js';
 import { toGtfsDate } from './time-date.js';
 
 // Day-of-week column names in GTFS calendar, indexed by Date#getDay() (0=Sun)
 const DOW_COLUMNS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-
-export interface CalendarRow {
-  service_id: string;
-  monday: 0 | 1;
-  tuesday: 0 | 1;
-  wednesday: 0 | 1;
-  thursday: 0 | 1;
-  friday: 0 | 1;
-  saturday: 0 | 1;
-  sunday: 0 | 1;
-  start_date: GtfsDate;
-  end_date: GtfsDate;
-}
-
-export interface CalendarDateRow {
-  service_id: string;
-  date: GtfsDate;
-  /** 1 = service added, 2 = service removed */
-  exception_type: 1 | 2;
-}
 
 export interface ServiceCalendarIndex {
   /**
@@ -55,13 +35,18 @@ const toDate = (date: Date | GtfsDate): Date => {
  * Builds a ServiceCalendarIndex from calendar and calendar_dates rows.
  * Supports GTFS calendar.txt (regular weekly schedules) and
  * calendar_dates.txt (exception overrides).
+ *
+ * Accepts GtfsJpV4TableRow<'calendar'> / GtfsJpV4TableRow<'calendar_dates'>
+ * directly from loader.readTable() calls.
  */
 export const buildServiceCalendarIndex = (
-  calendar: readonly CalendarRow[],
-  calendarDates: readonly CalendarDateRow[],
+  calendar: readonly GtfsJpV4TableRow<'calendar'>[],
+  calendarDates: readonly GtfsJpV4TableRow<'calendar_dates'>[],
 ): ServiceCalendarIndex => {
+  type CalRow = GtfsJpV4TableRow<'calendar'>;
+
   // Map: serviceId -> CalendarRow
-  const calendarMap = new Map<string, CalendarRow>();
+  const calendarMap = new Map<string, CalRow>();
   for (const row of calendar) {
     calendarMap.set(row.service_id, row);
   }
@@ -74,7 +59,7 @@ export const buildServiceCalendarIndex = (
       byDate = new Map();
       exceptionsMap.set(row.service_id, byDate);
     }
-    byDate.set(row.date, row.exception_type);
+    byDate.set(row.date, row.exception_type ?? 1);
   }
 
   const allServiceIds = new Set([...calendarMap.keys(), ...exceptionsMap.keys()]);

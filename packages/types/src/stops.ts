@@ -1,20 +1,22 @@
+import type { GtfsJpV4TableRow } from './types.js';
+
+/**
+ * Minimal structural constraint for stop rows.
+ * GtfsJpV4TableRow<'stops'> satisfies this interface.
+ */
 export interface StopRow {
   stop_id: string;
-  stop_name?: string;
-  stop_lat?: number;
-  stop_lon?: number;
-  location_type?: number;
-  parent_station?: string;
+  parent_station?: string | null;
   [key: string]: unknown;
 }
 
-export interface StopNode<TRow extends StopRow = StopRow> {
+export interface StopNode<TRow extends StopRow = GtfsJpV4TableRow<'stops'>> {
   row: TRow;
   parent: StopNode<TRow> | null;
   children: StopNode<TRow>[];
 }
 
-export interface StopHierarchy<TRow extends StopRow = StopRow> {
+export interface StopHierarchy<TRow extends StopRow = GtfsJpV4TableRow<'stops'>> {
   /** Root nodes (stops with no parent_station) */
   roots: StopNode<TRow>[];
   /** All nodes indexed by stop_id */
@@ -24,11 +26,16 @@ export interface StopHierarchy<TRow extends StopRow = StopRow> {
 /**
  * Builds a stop hierarchy tree from an array of stop rows.
  *
+ * Accepts GtfsJpV4TableRow<'stops'> directly from loader.readTable('stops').
+ * The generic parameter allows enriched row types as well.
+ *
  * Stops with a `parent_station` value are attached as children of that node.
  * Stops without a `parent_station` (or whose parent is not in the list) are
  * placed at the root level.
  */
-export const buildStopHierarchy = <TRow extends StopRow>(stops: readonly TRow[]): StopHierarchy<TRow> => {
+export const buildStopHierarchy = <TRow extends StopRow = GtfsJpV4TableRow<'stops'>>(
+  stops: readonly TRow[],
+): StopHierarchy<TRow> => {
   const byId = new Map<string, StopNode<TRow>>();
 
   // First pass: create all nodes

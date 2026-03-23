@@ -2,13 +2,13 @@ import { useState } from 'react';
 
 import { Button } from './components/ui/button';
 import { useGtfsWorkbench } from './application/gtfsWorkbench';
-import { TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
+import { TableViewerPanel, WorkflowPanel, ApiDemoPanel } from './presentation/gtfsWorkbench';
 
-type MainTab = 'workflow' | 'viewer';
+type MainTab = 'workflow' | 'viewer' | 'api-demo';
 
 export default function App(): JSX.Element {
   const [mainTab, setMainTab] = useState<MainTab>('workflow');
-  const { state, actions } = useGtfsWorkbench();
+  const { state, actions, loader } = useGtfsWorkbench();
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -33,9 +33,15 @@ export default function App(): JSX.Element {
           >
             Table Viewer
           </Button>
+          <Button
+            variant={mainTab === 'api-demo' ? 'default' : 'outline'}
+            onClick={() => setMainTab('api-demo')}
+          >
+            API Demo
+          </Button>
         </div>
 
-        {mainTab === 'workflow' ? (
+        {mainTab === 'workflow' && (
           <WorkflowPanel
             storage={state.storage}
             derivedTablesEnabled={state.derivedTablesEnabled}
@@ -53,7 +59,8 @@ export default function App(): JSX.Element {
             onClearDb={actions.clearDb}
             onClose={actions.closeDb}
           />
-        ) : (
+        )}
+        {mainTab === 'viewer' && (
           <TableViewerPanel
             summary={state.summary}
             selectedTable={state.selectedTable}
@@ -66,6 +73,9 @@ export default function App(): JSX.Element {
             onLimitChange={actions.setLimit}
             onReadRows={actions.readRows}
           />
+        )}
+        {mainTab === 'api-demo' && (
+          <ApiDemoPanel isOpen={state.isOpen} loader={loader} />
         )}
       </div>
     </main>

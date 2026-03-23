@@ -15,8 +15,6 @@ export {
 
 export {
   buildServiceCalendarIndex,
-  type CalendarRow,
-  type CalendarDateRow,
   type ServiceCalendarIndex,
 } from './calendar.js';
 

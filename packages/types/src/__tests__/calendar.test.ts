@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildServiceCalendarIndex } from '../index.js';
-import type { CalendarRow, CalendarDateRow } from '../index.js';
+import type { GtfsJpV4TableRow } from '../index.js';
 
-const monday: CalendarRow = {
+type CalRow = GtfsJpV4TableRow<'calendar'>;
+type CdRow = GtfsJpV4TableRow<'calendar_dates'>;
+
+const monday: CalRow = {
   service_id: 'weekday',
   monday: 1,
   tuesday: 1,
@@ -16,7 +19,7 @@ const monday: CalendarRow = {
   end_date: '20251231',
 };
 
-const weekend: CalendarRow = {
+const weekend: CalRow = {
   service_id: 'weekend',
   monday: 0,
   tuesday: 0,
@@ -45,7 +48,7 @@ describe('buildServiceCalendarIndex', () => {
   });
 
   it('respects start_date / end_date range', () => {
-    const limited: CalendarRow = { ...monday, service_id: 'limited', start_date: '20250601', end_date: '20250630' };
+    const limited: CalRow = { ...monday, service_id: 'limited', start_date: '20250601', end_date: '20250630' };
     const index = buildServiceCalendarIndex([limited], []);
     // Monday 2025-05-26 is before range
     expect(index.isActive('limited', '20250526')).toBe(false);
@@ -56,7 +59,7 @@ describe('buildServiceCalendarIndex', () => {
   });
 
   it('exception_type=1 adds service even on non-operating day', () => {
-    const exceptions: CalendarDateRow[] = [
+    const exceptions: CdRow[] = [
       { service_id: 'weekday', date: '20250405', exception_type: 1 }, // Saturday
     ];
     const index = buildServiceCalendarIndex([monday], exceptions);
@@ -64,7 +67,7 @@ describe('buildServiceCalendarIndex', () => {
   });
 
   it('exception_type=2 removes service on normally-operating day', () => {
-    const exceptions: CalendarDateRow[] = [
+    const exceptions: CdRow[] = [
       { service_id: 'weekday', date: '20250407', exception_type: 2 }, // Monday
     ];
     const index = buildServiceCalendarIndex([monday], exceptions);
@@ -86,7 +89,7 @@ describe('buildServiceCalendarIndex', () => {
   });
 
   it('handles service only in calendar_dates with no calendar entry', () => {
-    const exceptions: CalendarDateRow[] = [
+    const exceptions: CdRow[] = [
       { service_id: 'special', date: '20250407', exception_type: 1 },
     ];
     const index = buildServiceCalendarIndex([], exceptions);
