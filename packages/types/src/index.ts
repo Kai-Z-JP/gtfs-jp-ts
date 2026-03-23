@@ -7,6 +7,13 @@ export {
 } from './schema.js';
 
 export {
+  buildStopHierarchy,
+  type StopRow,
+  type StopNode,
+  type StopHierarchy,
+} from './stops.js';
+
+export {
   buildServiceCalendarIndex,
   type CalendarRow,
   type CalendarDateRow,
