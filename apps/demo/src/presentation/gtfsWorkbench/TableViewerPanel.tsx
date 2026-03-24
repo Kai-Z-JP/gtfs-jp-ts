@@ -3,16 +3,9 @@ import { useEffect, useState } from 'react';
 import { Rows2, Search } from 'lucide-react';
 
 import type { GtfsRow } from '@gtfs-jp/types';
-import { getGtfsJpV4TableSchema, isGtfsJpV4TableName } from '@gtfs-jp/types';
 
 import { Button } from '../../components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { DataTable } from './DataTable';
@@ -48,21 +41,10 @@ export function TableViewerPanel({
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!selectedTable) {
-      setAvailableColumns([]);
-      setSelectedColumns(new Set());
-      return;
-    }
-    if (isGtfsJpV4TableName(selectedTable)) {
-      const cols = Object.keys(getGtfsJpV4TableSchema(selectedTable).columns);
+    void onGetTableColumns(selectedTable).then((cols) => {
       setAvailableColumns(cols);
       setSelectedColumns(new Set(cols));
-    } else {
-      void onGetTableColumns(selectedTable).then((cols) => {
-        setAvailableColumns(cols);
-        setSelectedColumns(new Set(cols));
-      });
-    }
+    });
   }, [selectedTable, onGetTableColumns]);
 
   const toggleColumn = (col: string) => {
