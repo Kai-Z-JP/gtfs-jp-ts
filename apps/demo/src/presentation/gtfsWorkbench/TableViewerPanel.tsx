@@ -1,14 +1,28 @@
 import { useEffect, useState } from 'react';
 
-import { Rows2, Search } from 'lucide-react';
+import { Plus, Rows2, Search, X } from 'lucide-react';
 
 import type { GtfsRow } from '@gtfs-jp/types';
 
+import type { WhereCondition, WhereOperator } from '../../domain/gtfsWorkbench';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { DataTable } from './DataTable';
+
+const WHERE_OPERATORS: WhereOperator[] = [
+  '=',
+  '!=',
+  '>',
+  '>=',
+  '<',
+  '<=',
+  'LIKE',
+  'NOT LIKE',
+  'IS NULL',
+  'IS NOT NULL',
+];
 
 type TableViewerPanelProps = {
   summary: string;
@@ -20,7 +34,7 @@ type TableViewerPanelProps = {
   isOpen: boolean;
   onSelectedTableChange: (selectedTable: string) => void;
   onLimitChange: (limit: string) => void;
-  onReadRows: (columns?: string[]) => Promise<void>;
+  onReadRows: (columns?: string[], whereConditions?: WhereCondition[]) => Promise<void>;
   onGetTableColumns: (tableName: string) => Promise<string[]>;
 };
 
@@ -39,11 +53,13 @@ export function TableViewerPanel({
 }: TableViewerPanelProps): JSX.Element {
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
+  const [whereConditions, setWhereConditions] = useState<WhereCondition[]>([]);
 
   useEffect(() => {
     void onGetTableColumns(selectedTable).then((cols) => {
       setAvailableColumns(cols);
       setSelectedColumns(new Set(cols));
+      setWhereConditions([]);
     });
   }, [selectedTable, onGetTableColumns]);
 
@@ -59,12 +75,25 @@ export function TableViewerPanel({
     });
   };
 
+  const addCondition = () => {
+    const firstCol = availableColumns[0] ?? '';
+    setWhereConditions((prev) => [...prev, { column: firstCol, operator: '=', value: '' }]);
+  };
+
+  const updateCondition = (index: number, patch: Partial<WhereCondition>) => {
+    setWhereConditions((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  };
+
+  const removeCondition = (index: number) => {
+    setWhereConditions((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleRead = () => {
     const columns =
       availableColumns.length > 0
         ? availableColumns.filter((c) => selectedColumns.has(c))
         : undefined;
-    void onReadRows(columns);
+    void onReadRows(columns, whereConditions);
   };
 
   return (
@@ -157,6 +186,80 @@ export function TableViewerPanel({
                 </label>
               ))}
             </div>
+          </div>
+        )}
+
+        {availableColumns.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label>Where</Label>
+              <button
+                type="button"
+                onClick={addCondition}
+                disabled={busy || !isOpen}
+                className="flex items-center gap-1 rounded border border-neutral-300 px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-50 disabled:opacity-40"
+              >
+                <Plus className="h-3 w-3" />
+                条件を追加
+              </button>
+            </div>
+            {whereConditions.length > 0 && (
+              <div className="space-y-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
+                {whereConditions.map((cond, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    {idx > 0 && (
+                      <span className="w-8 text-right text-xs font-medium text-neutral-400">
+                        AND
+                      </span>
+                    )}
+                    {idx === 0 && <span className="w-8" />}
+                    <select
+                      value={cond.column}
+                      onChange={(e) => updateCondition(idx, { column: e.target.value })}
+                      disabled={busy}
+                      className="h-7 rounded border border-neutral-300 bg-white px-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                    >
+                      {availableColumns.map((col) => (
+                        <option key={col} value={col}>
+                          {col}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={cond.operator}
+                      onChange={(e) =>
+                        updateCondition(idx, { operator: e.target.value as WhereOperator })
+                      }
+                      disabled={busy}
+                      className="h-7 rounded border border-neutral-300 bg-white px-2 text-xs outline-none focus:ring-1 focus:ring-black"
+                    >
+                      {WHERE_OPERATORS.map((op) => (
+                        <option key={op} value={op}>
+                          {op}
+                        </option>
+                      ))}
+                    </select>
+                    {cond.operator !== 'IS NULL' && cond.operator !== 'IS NOT NULL' && (
+                      <Input
+                        value={cond.value}
+                        onChange={(e) => updateCondition(idx, { value: e.target.value })}
+                        disabled={busy}
+                        className="h-7 w-40 font-mono text-xs"
+                        placeholder="value"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeCondition(idx)}
+                      disabled={busy}
+                      className="text-neutral-400 hover:text-neutral-700 disabled:opacity-40"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

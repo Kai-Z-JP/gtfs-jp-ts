@@ -23,3 +23,21 @@ export type ImportProgressState = {
   phase: ImportProgressViewPhase;
   tableCards: TableProgressCard[];
 };
+
+export type WhereOperator =
+  | '='
+  | '!='
+  | '>'
+  | '>='
+  | '<'
+  | '<='
+  | 'LIKE'
+  | 'NOT LIKE'
+  | 'IS NULL'
+  | 'IS NOT NULL';
+
+export type WhereCondition = {
+  column: string;
+  operator: WhereOperator;
+  value: string;
+};

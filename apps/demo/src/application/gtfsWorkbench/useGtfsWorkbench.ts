@@ -11,6 +11,7 @@ import {
   reduceImportProgressState,
   type StatusMessage,
   type StatusType,
+  type WhereCondition,
 } from '../../domain/gtfsWorkbench';
 import {
   detectOpfsSupport,
@@ -60,7 +61,7 @@ export type WorkbenchActions = {
   refreshTables: () => Promise<void>;
   importZip: (file: File | undefined) => Promise<void>;
   clearDb: () => Promise<void>;
-  readRows: (columns?: string[]) => Promise<void>;
+  readRows: (columns?: string[], whereConditions?: WhereCondition[]) => Promise<void>;
   getTableColumns: (tableName: string) => Promise<string[]>;
 };
 
@@ -385,7 +386,7 @@ export function useGtfsWorkbench(): {
   }, []);
 
   const readRows = useCallback(
-    async (columns?: string[]) => {
+    async (columns?: string[], whereConditions?: WhereCondition[]) => {
       if (!loaderRef.current) {
         return;
       }
@@ -401,12 +402,27 @@ export function useGtfsWorkbench(): {
         return;
       }
 
+      const buildWhereClause = (conditions: WhereCondition[]): string => {
+        if (conditions.length === 0) return '';
+        const parts = conditions.map((c) => {
+          const col = `"${c.column}"`;
+          if (c.operator === 'IS NULL' || c.operator === 'IS NOT NULL') {
+            return `${col} ${c.operator}`;
+          }
+          const val = c.value.replace(/'/g, "''");
+          return `${col} ${c.operator} '${val}'`;
+        });
+        return `WHERE ${parts.join(' AND ')}`;
+      };
+
       dispatch({ type: 'set-busy', busy: true });
       try {
         let loadedRows: GtfsRow[];
-        if (columns && columns.length > 0) {
-          const cols = columns.map((c) => `"${c}"`).join(', ');
-          const sql = `SELECT ${cols} FROM "${state.selectedTable}" LIMIT ${parsedLimit.value}`;
+        const whereClause = buildWhereClause(whereConditions ?? []);
+        if ((columns && columns.length > 0) || whereClause) {
+          const colExpr =
+            columns && columns.length > 0 ? columns.map((c) => `"${c}"`).join(', ') : '*';
+          const sql = `SELECT ${colExpr} FROM "${state.selectedTable}" ${whereClause} LIMIT ${parsedLimit.value}`;
           loadedRows = await loaderRef.current.query(sql);
         } else {
           loadedRows = await loaderRef.current.readRows(state.selectedTable, parsedLimit.value);
