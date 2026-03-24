@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
+
 import { Rows2, Search } from 'lucide-react';
 
 import type { GtfsRow } from '@gtfs-jp/types';
+import { getGtfsJpV4TableSchema, isGtfsJpV4TableName } from '@gtfs-jp/types';
 
 import { Button } from '../../components/ui/button';
 import {
@@ -24,7 +27,8 @@ type TableViewerPanelProps = {
   isOpen: boolean;
   onSelectedTableChange: (selectedTable: string) => void;
   onLimitChange: (limit: string) => void;
-  onReadRows: () => Promise<void>;
+  onReadRows: (columns?: string[]) => Promise<void>;
+  onGetTableColumns: (tableName: string) => Promise<string[]>;
 };
 
 export function TableViewerPanel({
@@ -38,7 +42,49 @@ export function TableViewerPanel({
   onSelectedTableChange,
   onLimitChange,
   onReadRows,
+  onGetTableColumns,
 }: TableViewerPanelProps): JSX.Element {
+  const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!selectedTable) {
+      setAvailableColumns([]);
+      setSelectedColumns(new Set());
+      return;
+    }
+    if (isGtfsJpV4TableName(selectedTable)) {
+      const cols = Object.keys(getGtfsJpV4TableSchema(selectedTable).columns);
+      setAvailableColumns(cols);
+      setSelectedColumns(new Set(cols));
+    } else {
+      void onGetTableColumns(selectedTable).then((cols) => {
+        setAvailableColumns(cols);
+        setSelectedColumns(new Set(cols));
+      });
+    }
+  }, [selectedTable, onGetTableColumns]);
+
+  const toggleColumn = (col: string) => {
+    setSelectedColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) {
+        next.delete(col);
+      } else {
+        next.add(col);
+      }
+      return next;
+    });
+  };
+
+  const handleRead = () => {
+    const columns =
+      availableColumns.length > 0
+        ? availableColumns.filter((c) => selectedColumns.has(c))
+        : undefined;
+    void onReadRows(columns);
+  };
+
   return (
     <Card className="border-black bg-white">
       <CardHeader>
@@ -83,14 +129,54 @@ export function TableViewerPanel({
           <div className="flex items-end">
             <Button
               className="w-full"
-              disabled={busy || !isOpen || tableNames.length === 0}
-              onClick={() => void onReadRows()}
+              disabled={
+                busy ||
+                !isOpen ||
+                tableNames.length === 0 ||
+                (availableColumns.length > 0 && selectedColumns.size === 0)
+              }
+              onClick={handleRead}
             >
               <Search className="h-4 w-4" />
               Read
             </Button>
           </div>
         </div>
+
+        {availableColumns.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label>Columns</Label>
+              <button
+                type="button"
+                onClick={() => setSelectedColumns(new Set(availableColumns))}
+                className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-50"
+              >
+                全選択
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedColumns(new Set())}
+                className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-50"
+              >
+                全解除
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
+              {availableColumns.map((col) => (
+                <label key={col} className="flex cursor-pointer items-center gap-1 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={selectedColumns.has(col)}
+                    onChange={() => toggleColumn(col)}
+                    className="cursor-pointer"
+                  />
+                  <span className="font-mono">{col}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="max-h-[560px] overflow-auto rounded-lg border border-black bg-white">
           {rows.length === 0 ? (

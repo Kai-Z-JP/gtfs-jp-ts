@@ -1,14 +1,14 @@
 import {
+  type CountOptions,
   createGtfsLoader,
   type GtfsLoader,
   type GtfsSchemaDefinition,
-  type ImportProgressEvent,
-  type ImportGtfsZipResult,
-  type SqliteStorageMode,
   type GtfsValidationResult,
-  type CountOptions,
+  type ImportGtfsZipResult,
+  type ImportProgressEvent,
+  type SqliteStorageMode,
 } from '@gtfs-jp/loader';
-import type { GtfsRow, GtfsJpV4TableName, GtfsJpV4TableRow } from '@gtfs-jp/types';
+import type { GtfsJpV4TableName, GtfsRow } from '@gtfs-jp/types';
 
 import type { GtfsLoaderPort } from './GtfsLoaderPort';
 import { createSampleSchema, sampleRuntime } from './schema';
@@ -72,9 +72,13 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
     return await loader.readRows(tableName, { limit });
   }
 
-  async readTable<TName extends GtfsJpV4TableName>(tableName: TName): Promise<GtfsJpV4TableRow<TName>[]> {
+  async readTable<TName extends GtfsJpV4TableName>(
+    tableName: TName,
+    options?: { columns?: readonly string[] },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<any[]> {
     const loader = this.requireLoader();
-    return await loader.readTable(tableName) as GtfsJpV4TableRow<TName>[];
+    return await loader.readTable(tableName, options);
   }
 
   async validate(): Promise<GtfsValidationResult> {

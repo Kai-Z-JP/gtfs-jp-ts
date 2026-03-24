@@ -5,10 +5,10 @@ import type { ImportProgressEvent, SqliteStorageMode } from '@gtfs-jp/loader';
 
 import {
   createInitialImportProgress,
-  parseLimit,
-  reduceImportProgressState,
   type ImportProgressState,
   type OpfsSupport,
+  parseLimit,
+  reduceImportProgressState,
   type StatusMessage,
   type StatusType,
 } from '../../domain/gtfsWorkbench';
@@ -60,7 +60,8 @@ export type WorkbenchActions = {
   refreshTables: () => Promise<void>;
   importZip: (file: File | undefined) => Promise<void>;
   clearDb: () => Promise<void>;
-  readRows: () => Promise<void>;
+  readRows: (columns?: string[]) => Promise<void>;
+  getTableColumns: (tableName: string) => Promise<string[]>;
 };
 
 const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState => ({
@@ -377,33 +378,49 @@ export function useGtfsWorkbench(): {
     }
   }, [refreshTables, setStatusMessage]);
 
-  const readRows = useCallback(async () => {
-    if (!loaderRef.current) {
-      return;
-    }
+  const getTableColumns = useCallback(async (tableName: string): Promise<string[]> => {
+    if (!loaderRef.current || !tableName) return [];
+    const rows = await loaderRef.current.query(`PRAGMA table_info("${tableName}")`);
+    return rows.map((r) => String(r['name']));
+  }, []);
 
-    if (!state.selectedTable) {
-      setStatusMessage('テーブルを選択してください', 'warn');
-      return;
-    }
+  const readRows = useCallback(
+    async (columns?: string[]) => {
+      if (!loaderRef.current) {
+        return;
+      }
 
-    const parsedLimit = parseLimit(state.limit);
-    if (!parsedLimit.ok) {
-      setStatusMessage(parsedLimit.errorMessage, 'warn');
-      return;
-    }
+      if (!state.selectedTable) {
+        setStatusMessage('テーブルを選択してください', 'warn');
+        return;
+      }
 
-    dispatch({ type: 'set-busy', busy: true });
-    try {
-      const loadedRows = await loaderRef.current.readRows(state.selectedTable, parsedLimit.value);
-      dispatch({ type: 'set-rows', rows: loadedRows });
-      setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
-    } catch (error) {
-      handleError(error, `${state.selectedTable} の読込に失敗しました`, setStatusMessage);
-    } finally {
-      dispatch({ type: 'set-busy', busy: false });
-    }
-  }, [setStatusMessage, state.limit, state.selectedTable]);
+      const parsedLimit = parseLimit(state.limit);
+      if (!parsedLimit.ok) {
+        setStatusMessage(parsedLimit.errorMessage, 'warn');
+        return;
+      }
+
+      dispatch({ type: 'set-busy', busy: true });
+      try {
+        let loadedRows: GtfsRow[];
+        if (columns && columns.length > 0) {
+          const cols = columns.map((c) => `"${c}"`).join(', ');
+          const sql = `SELECT ${cols} FROM "${state.selectedTable}" LIMIT ${parsedLimit.value}`;
+          loadedRows = await loaderRef.current.query(sql);
+        } else {
+          loadedRows = await loaderRef.current.readRows(state.selectedTable, parsedLimit.value);
+        }
+        dispatch({ type: 'set-rows', rows: loadedRows });
+        setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
+      } catch (error) {
+        handleError(error, `${state.selectedTable} の読込に失敗しました`, setStatusMessage);
+      } finally {
+        dispatch({ type: 'set-busy', busy: false });
+      }
+    },
+    [setStatusMessage, state.limit, state.selectedTable],
+  );
 
   const actions = useMemo<WorkbenchActions>(
     () => ({
@@ -417,8 +434,18 @@ export function useGtfsWorkbench(): {
       importZip,
       clearDb,
       readRows,
+      getTableColumns,
     }),
-    [clearDb, closeDb, importZip, openDb, readRows, refreshTables, setDerivedTablesEnabled],
+    [
+      clearDb,
+      closeDb,
+      getTableColumns,
+      importZip,
+      openDb,
+      readRows,
+      refreshTables,
+      setDerivedTablesEnabled,
+    ],
   );
 
   return {

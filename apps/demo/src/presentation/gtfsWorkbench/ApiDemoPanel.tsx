@@ -143,6 +143,72 @@ function CountSection({ loader }: { loader: GtfsLoaderPort }) {
 }
 
 // ---------------------------------------------------------------------------
+// Section: readTable with column selection
+// ---------------------------------------------------------------------------
+
+function ReadTableColumnsSection({ loader }: { loader: GtfsLoaderPort }) {
+  const [rows, setRows] = useState<Array<{ stop_id: string; stop_name?: string }> | null>(null);
+  const [total, setTotal] = useState<number>(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await loader.readTable('stops', {
+        columns: ['stop_id', 'stop_name'] as const,
+      });
+      setTotal(result.length);
+      setRows(result.slice(0, 10));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded border p-4">
+      <h3 className="text-sm font-semibold">readTable() + columns</h3>
+      <p className="text-xs text-neutral-500">
+        特定カラムのみ取得 — stops から stop_id / stop_name だけ読み込む
+      </p>
+      <p className="font-mono text-xs text-neutral-400">
+        {"readTable('stops', { columns: ['stop_id', 'stop_name'] })"}
+      </p>
+      <Button size="sm" onClick={run} disabled={busy}>
+        {busy ? '実行中…' : '実行'}
+      </Button>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {rows && (
+        <div className="space-y-1 text-xs">
+          <p>
+            {total} 件中 先頭 {Math.min(10, total)} 件を表示
+          </p>
+          <table className="w-full border-collapse font-mono">
+            <thead>
+              <tr className="border-b text-left text-neutral-500">
+                <th className="py-1 pr-4">stop_id</th>
+                <th className="py-1">stop_name</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.stop_id} className="border-b border-neutral-100">
+                  <td className="py-0.5 pr-4 text-blue-700">{row.stop_id}</td>
+                  <td className="py-0.5 text-neutral-700">{row.stop_name ?? '(なし)'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Section: Calendar Index
 // ---------------------------------------------------------------------------
 
@@ -274,6 +340,7 @@ export function ApiDemoPanel({ isOpen, loader }: Props): JSX.Element {
       <TimeDateSection />
       <ValidateSection loader={loader} />
       <CountSection loader={loader} />
+      <ReadTableColumnsSection loader={loader} />
       <CalendarSection loader={loader} />
       <StopHierarchySection loader={loader} />
     </div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { Button } from './components/ui/button';
 import { useGtfsWorkbench } from './application/gtfsWorkbench';
-import { TableViewerPanel, WorkflowPanel, ApiDemoPanel } from './presentation/gtfsWorkbench';
+import { ApiDemoPanel, TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
 
 type MainTab = 'workflow' | 'viewer' | 'api-demo';
 
@@ -72,11 +72,10 @@ export default function App(): JSX.Element {
             onSelectedTableChange={actions.setSelectedTable}
             onLimitChange={actions.setLimit}
             onReadRows={actions.readRows}
+            onGetTableColumns={actions.getTableColumns}
           />
         )}
-        {mainTab === 'api-demo' && (
-          <ApiDemoPanel isOpen={state.isOpen} loader={loader} />
-        )}
+        {mainTab === 'api-demo' && <ApiDemoPanel isOpen={state.isOpen} loader={loader} />}
       </div>
     </main>
   );

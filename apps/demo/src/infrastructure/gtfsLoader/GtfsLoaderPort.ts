@@ -1,12 +1,14 @@
-import type { GtfsRow, GtfsJpV4TableName, GtfsJpV4TableRow } from '@gtfs-jp/types';
+import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from '@gtfs-jp/types';
 import type {
-  ImportProgressEvent,
-  ImportGtfsZipResult,
-  GtfsValidationResult,
   CountOptions,
+  GtfsValidationResult,
+  ImportGtfsZipResult,
+  ImportProgressEvent,
+  SourceReadColumns,
+  SourceReadRow,
 } from '@gtfs-jp/loader';
 
-export type { GtfsValidationResult, CountOptions };
+export type { GtfsValidationResult, CountOptions, SourceReadColumns, SourceReadRow };
 
 export interface GtfsLoaderPort {
   open(): Promise<void>;
@@ -26,9 +28,12 @@ export interface GtfsLoaderPort {
 
   readRows(tableName: string, limit: number): Promise<GtfsRow[]>;
 
-  readTable<TName extends GtfsJpV4TableName>(
+  readTable<TName extends GtfsJpV4TableName>(tableName: TName): Promise<GtfsJpV4TableRow<TName>[]>;
+
+  readTable<TName extends GtfsJpV4TableName, TColumns extends SourceReadColumns<TName>>(
     tableName: TName,
-  ): Promise<GtfsJpV4TableRow<TName>[]>;
+    options: { columns: TColumns },
+  ): Promise<Array<SourceReadRow<TName, TColumns>>>;
 
   validate(): Promise<GtfsValidationResult>;
 
