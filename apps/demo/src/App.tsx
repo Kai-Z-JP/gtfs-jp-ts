@@ -2,13 +2,13 @@ import { useState } from 'react';
 
 import { Button } from './components/ui/button';
 import { useGtfsWorkbench } from './application/gtfsWorkbench';
-import { ApiDemoPanel, TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
+import { TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
 
-type MainTab = 'workflow' | 'viewer' | 'api-demo';
+type MainTab = 'workflow' | 'viewer';
 
 export default function App(): JSX.Element {
   const [mainTab, setMainTab] = useState<MainTab>('workflow');
-  const { state, actions, loader } = useGtfsWorkbench();
+  const { state, actions } = useGtfsWorkbench();
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -32,12 +32,6 @@ export default function App(): JSX.Element {
             onClick={() => setMainTab('viewer')}
           >
             Table Viewer
-          </Button>
-          <Button
-            variant={mainTab === 'api-demo' ? 'default' : 'outline'}
-            onClick={() => setMainTab('api-demo')}
-          >
-            API Demo
           </Button>
         </div>
 
@@ -75,7 +69,6 @@ export default function App(): JSX.Element {
             onGetTableColumns={actions.getTableColumns}
           />
         )}
-        {mainTab === 'api-demo' && <ApiDemoPanel isOpen={state.isOpen} loader={loader} />}
       </div>
     </main>
   );
