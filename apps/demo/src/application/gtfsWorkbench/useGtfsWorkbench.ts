@@ -203,7 +203,6 @@ export function useGtfsWorkbench(): {
   const [state, dispatch] = useReducer(workbenchReducer, opfsSupport, createInitialWorkbenchState);
 
   const loaderRef = useRef<GtfsLoaderPort | undefined>(undefined);
-  // Mirrors loaderRef as React state so components can read it during render
   const [loader, setLoader] = useState<GtfsLoaderPort | null>(null);
 
   const setStatusMessage = useCallback((message: string, type: StatusType) => {
@@ -381,8 +380,9 @@ export function useGtfsWorkbench(): {
 
   const getTableColumns = useCallback(async (tableName: string): Promise<string[]> => {
     if (!loaderRef.current || !tableName) return [];
-    const rows = await loaderRef.current.query(`PRAGMA table_info("${tableName}")`);
-    return rows.map((r) => String(r['name']));
+    const tables = await loaderRef.current.getKyselyDb().introspection.getTables();
+    const columns = tables.find((t) => t.name === tableName)?.columns ?? [];
+    return columns.map((c) => c.name);
   }, []);
 
   const readRows = useCallback(
@@ -402,31 +402,35 @@ export function useGtfsWorkbench(): {
         return;
       }
 
-      const buildWhereClause = (conditions: WhereCondition[]): string => {
-        if (conditions.length === 0) return '';
-        const parts = conditions.map((c) => {
-          const col = `"${c.column}"`;
-          if (c.operator === 'IS NULL' || c.operator === 'IS NOT NULL') {
-            return `${col} ${c.operator}`;
-          }
-          const val = c.value.replace(/'/g, "''");
-          return `${col} ${c.operator} '${val}'`;
-        });
-        return `WHERE ${parts.join(' AND ')}`;
-      };
-
       dispatch({ type: 'set-busy', busy: true });
       try {
-        let loadedRows: GtfsRow[];
-        const whereClause = buildWhereClause(whereConditions ?? []);
-        if ((columns && columns.length > 0) || whereClause) {
-          const colExpr =
-            columns && columns.length > 0 ? columns.map((c) => `"${c}"`).join(', ') : '*';
-          const sql = `SELECT ${colExpr} FROM "${state.selectedTable}" ${whereClause} LIMIT ${parsedLimit.value}`;
-          loadedRows = await loaderRef.current.query(sql);
+        const db = loaderRef.current.getKyselyDb();
+        const hasColumns = columns && columns.length > 0;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let q = db.selectFrom(state.selectedTable as any);
+
+        if (hasColumns) {
+          q = q.select(columns);
         } else {
-          loadedRows = await loaderRef.current.readRows(state.selectedTable, parsedLimit.value);
+          q = q.selectAll();
         }
+
+        for (const cond of whereConditions ?? []) {
+          if (cond.operator === 'is' || cond.operator === 'is not') {
+            q = q.where(cond.column, cond.operator, null);
+          } else if (cond.operator === 'in' || cond.operator === 'not in') {
+            const values = cond.value
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean);
+            q = q.where(cond.column, cond.operator, values);
+          } else {
+            q = q.where(cond.column, cond.operator, cond.value);
+          }
+        }
+
+        const loadedRows = (await q.limit(parsedLimit.value).execute()) as GtfsRow[];
         dispatch({ type: 'set-rows', rows: loadedRows });
         setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
       } catch (error) {

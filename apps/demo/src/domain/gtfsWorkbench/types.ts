@@ -1,4 +1,28 @@
 import type { ImportProgressPhase, ImportTargetState } from '@gtfs-jp/loader';
+import type { ComparisonOperator } from 'kysely';
+
+export const GTFS_WHERE_OPERATORS = [
+  '=',
+  '!=',
+  '<',
+  '<=',
+  '>',
+  '>=',
+  'like',
+  'not like',
+  'in',
+  'not in',
+  'is',
+  'is not',
+] as const satisfies readonly ComparisonOperator[];
+
+export type GtfsWhereOperator = (typeof GTFS_WHERE_OPERATORS)[number];
+
+export type WhereCondition = {
+  column: string;
+  operator: GtfsWhereOperator;
+  value: string;
+};
 
 export type StatusType = 'ok' | 'warn' | 'error';
 
@@ -22,22 +46,4 @@ export type TableProgressCard = {
 export type ImportProgressState = {
   phase: ImportProgressViewPhase;
   tableCards: TableProgressCard[];
-};
-
-export type WhereOperator =
-  | '='
-  | '!='
-  | '>'
-  | '>='
-  | '<'
-  | '<='
-  | 'LIKE'
-  | 'NOT LIKE'
-  | 'IS NULL'
-  | 'IS NOT NULL';
-
-export type WhereCondition = {
-  column: string;
-  operator: WhereOperator;
-  value: string;
 };

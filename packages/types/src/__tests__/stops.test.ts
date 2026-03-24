@@ -1,17 +1,60 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildStopHierarchy } from '../index.js';
 import type { GtfsJpV4TableRow, StopRow } from '../index.js';
+import { buildStopHierarchy } from '../index.js';
 
 // Using the canonical GTFS row type directly — no separate interface needed
 type StopsRow = GtfsJpV4TableRow<'stops'>;
 
 const stops: StopsRow[] = [
-  { stop_id: 'station_A', stop_name: 'Station A', stop_lat: 35.0, stop_lon: 135.0, zone_id: 'Z1', location_type: 1, platform_code: '' },
-  { stop_id: 'platform_A1', stop_name: 'Platform 1', stop_lat: 35.0, stop_lon: 135.0, zone_id: 'Z1', parent_station: 'station_A', location_type: 0, platform_code: '1' },
-  { stop_id: 'platform_A2', stop_name: 'Platform 2', stop_lat: 35.0, stop_lon: 135.0, zone_id: 'Z1', parent_station: 'station_A', location_type: 0, platform_code: '2' },
-  { stop_id: 'stop_B', stop_name: 'Stop B', stop_lat: 35.1, stop_lon: 135.1, zone_id: 'Z1', location_type: 0, platform_code: '' },
-  { stop_id: 'stop_C', stop_name: 'Stop C', stop_lat: 35.1, stop_lon: 135.1, zone_id: 'Z1', parent_station: 'stop_B', location_type: 0, platform_code: '' },
+  {
+    stop_id: 'station_A',
+    stop_name: 'Station A',
+    stop_lat: 35.0,
+    stop_lon: 135.0,
+    zone_id: 'Z1',
+    location_type: 1,
+    platform_code: '',
+  },
+  {
+    stop_id: 'platform_A1',
+    stop_name: 'Platform 1',
+    stop_lat: 35.0,
+    stop_lon: 135.0,
+    zone_id: 'Z1',
+    parent_station: 'station_A',
+    location_type: 0,
+    platform_code: '1',
+  },
+  {
+    stop_id: 'platform_A2',
+    stop_name: 'Platform 2',
+    stop_lat: 35.0,
+    stop_lon: 135.0,
+    zone_id: 'Z1',
+    parent_station: 'station_A',
+    location_type: 0,
+    platform_code: '2',
+  },
+  {
+    stop_id: 'stop_B',
+    stop_name: 'Stop B',
+    stop_lat: 35.1,
+    stop_lon: 135.1,
+    zone_id: 'Z1',
+    location_type: 0,
+    platform_code: '',
+  },
+  {
+    stop_id: 'stop_C',
+    stop_name: 'Stop C',
+    stop_lat: 35.1,
+    stop_lon: 135.1,
+    zone_id: 'Z1',
+    parent_station: 'stop_B',
+    location_type: 0,
+    platform_code: '',
+  },
 ];
 
 describe('buildStopHierarchy', () => {
@@ -24,7 +67,10 @@ describe('buildStopHierarchy', () => {
   it('attaches children to their parent', () => {
     const { byId } = buildStopHierarchy(stops);
     const stationA = byId.get('station_A')!;
-    expect(stationA.children.map((n) => n.row.stop_id).sort()).toEqual(['platform_A1', 'platform_A2']);
+    expect(stationA.children.map((n) => n.row.stop_id).sort()).toEqual([
+      'platform_A1',
+      'platform_A2',
+    ]);
   });
 
   it('sets parent reference on child nodes', () => {

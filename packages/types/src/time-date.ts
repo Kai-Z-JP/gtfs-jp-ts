@@ -12,8 +12,7 @@ export type ParsedGtfsTime = {
 
 const GTFS_TIME_RE = /^(\d{1,3}):([0-5]\d):([0-5]\d)$/;
 
-export const isValidGtfsTime = (value: string): value is GtfsTime =>
-  GTFS_TIME_RE.test(value);
+export const isValidGtfsTime = (value: string): value is GtfsTime => GTFS_TIME_RE.test(value);
 
 /**
  * Parses a GTFS time string (e.g. "25:30:00") into its components.
@@ -60,8 +59,7 @@ export const secondsToGtfsTime = (totalSeconds: number): GtfsTime => {
 
 const GTFS_DATE_RE = /^(\d{4})(\d{2})(\d{2})$/;
 
-export const isValidGtfsDate = (value: string): value is GtfsDate =>
-  GTFS_DATE_RE.test(value);
+export const isValidGtfsDate = (value: string): value is GtfsDate => GTFS_DATE_RE.test(value);
 
 /**
  * Parses a GTFS date string (YYYYMMDD) into a local-time Date object.

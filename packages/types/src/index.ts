@@ -6,17 +6,9 @@ export {
   type GtfsJpV4TableSchema,
 } from './schema.js';
 
-export {
-  buildStopHierarchy,
-  type StopRow,
-  type StopNode,
-  type StopHierarchy,
-} from './stops.js';
+export { buildStopHierarchy, type StopRow, type StopNode, type StopHierarchy } from './stops.js';
 
-export {
-  buildServiceCalendarIndex,
-  type ServiceCalendarIndex,
-} from './calendar.js';
+export { buildServiceCalendarIndex, type ServiceCalendarIndex } from './calendar.js';
 
 export {
   gtfsDateToIsoString,

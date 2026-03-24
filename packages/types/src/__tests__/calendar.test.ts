@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildServiceCalendarIndex } from '../index.js';
 import type { GtfsJpV4TableRow } from '../index.js';
+import { buildServiceCalendarIndex } from '../index.js';
 
 type CalRow = GtfsJpV4TableRow<'calendar'>;
 type CdRow = GtfsJpV4TableRow<'calendar_dates'>;
@@ -48,7 +48,12 @@ describe('buildServiceCalendarIndex', () => {
   });
 
   it('respects start_date / end_date range', () => {
-    const limited: CalRow = { ...monday, service_id: 'limited', start_date: '20250601', end_date: '20250630' };
+    const limited: CalRow = {
+      ...monday,
+      service_id: 'limited',
+      start_date: '20250601',
+      end_date: '20250630',
+    };
     const index = buildServiceCalendarIndex([limited], []);
     // Monday 2025-05-26 is before range
     expect(index.isActive('limited', '20250526')).toBe(false);
@@ -89,9 +94,7 @@ describe('buildServiceCalendarIndex', () => {
   });
 
   it('handles service only in calendar_dates with no calendar entry', () => {
-    const exceptions: CdRow[] = [
-      { service_id: 'special', date: '20250407', exception_type: 1 },
-    ];
+    const exceptions: CdRow[] = [{ service_id: 'special', date: '20250407', exception_type: 1 }];
     const index = buildServiceCalendarIndex([], exceptions);
     expect(index.isActive('special', '20250407')).toBe(true);
     expect(index.isActive('special', '20250408')).toBe(false);

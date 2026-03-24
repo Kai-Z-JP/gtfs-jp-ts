@@ -1,14 +1,14 @@
-import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from '@gtfs-jp/types';
 import type {
-  CountOptions,
   GtfsValidationResult,
   ImportGtfsZipResult,
   ImportProgressEvent,
   SourceReadColumns,
   SourceReadRow,
 } from '@gtfs-jp/loader';
+import type { GtfsDatabase } from '@gtfs-jp/loader/kysely';
+import type { Kysely } from 'kysely';
 
-export type { GtfsValidationResult, CountOptions, SourceReadColumns, SourceReadRow };
+export type { GtfsValidationResult, SourceReadColumns, SourceReadRow, GtfsDatabase };
 
 export interface GtfsLoaderPort {
   open(): Promise<void>;
@@ -26,18 +26,7 @@ export interface GtfsLoaderPort {
     onProgress: (event: ImportProgressEvent) => void,
   ): Promise<ImportGtfsZipResult>;
 
-  readRows(tableName: string, limit: number): Promise<GtfsRow[]>;
-
-  readTable<TName extends GtfsJpV4TableName>(tableName: TName): Promise<GtfsJpV4TableRow<TName>[]>;
-
-  readTable<TName extends GtfsJpV4TableName, TColumns extends SourceReadColumns<TName>>(
-    tableName: TName,
-    options: { columns: TColumns },
-  ): Promise<Array<SourceReadRow<TName, TColumns>>>;
-
   validate(): Promise<GtfsValidationResult>;
 
-  count(tableName: string, options?: CountOptions): Promise<number>;
-
-  query(sql: string): Promise<GtfsRow[]>;
+  getKyselyDb(): Kysely<GtfsDatabase>;
 }

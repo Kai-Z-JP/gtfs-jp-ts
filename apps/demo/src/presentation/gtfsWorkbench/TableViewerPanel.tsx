@@ -4,25 +4,19 @@ import { Plus, Rows2, Search, X } from 'lucide-react';
 
 import type { GtfsRow } from '@gtfs-jp/types';
 
-import type { WhereCondition, WhereOperator } from '../../domain/gtfsWorkbench';
+import type { GtfsWhereOperator, WhereCondition } from '../../domain/gtfsWorkbench';
+import { GTFS_WHERE_OPERATORS } from '../../domain/gtfsWorkbench';
 import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from '../../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { DataTable } from './DataTable';
-
-const WHERE_OPERATORS: WhereOperator[] = [
-  '=',
-  '!=',
-  '>',
-  '>=',
-  '<',
-  '<=',
-  'LIKE',
-  'NOT LIKE',
-  'IS NULL',
-  'IS NOT NULL',
-];
 
 type TableViewerPanelProps = {
   summary: string;
@@ -226,28 +220,34 @@ export function TableViewerPanel({
                       ))}
                     </select>
                     <select
-                      value={cond.operator}
+                      value={cond.operator.toString()}
                       onChange={(e) =>
-                        updateCondition(idx, { operator: e.target.value as WhereOperator })
+                        updateCondition(idx, {
+                          operator: e.target.value as GtfsWhereOperator,
+                        })
                       }
                       disabled={busy}
                       className="h-7 rounded border border-neutral-300 bg-white px-2 text-xs outline-none focus:ring-1 focus:ring-black"
                     >
-                      {WHERE_OPERATORS.map((op) => (
+                      {GTFS_WHERE_OPERATORS.map((op) => (
                         <option key={op} value={op}>
                           {op}
                         </option>
                       ))}
                     </select>
-                    {cond.operator !== 'IS NULL' && cond.operator !== 'IS NOT NULL' && (
-                      <Input
-                        value={cond.value}
-                        onChange={(e) => updateCondition(idx, { value: e.target.value })}
-                        disabled={busy}
-                        className="h-7 w-40 font-mono text-xs"
-                        placeholder="value"
-                      />
-                    )}
+                    <Input
+                      value={cond.value}
+                      onChange={(e) => updateCondition(idx, { value: e.target.value })}
+                      disabled={busy || cond.operator === 'is' || cond.operator === 'is not'}
+                      className="h-7 w-40 font-mono text-xs"
+                      placeholder={
+                        cond.operator === 'is' || cond.operator === 'is not'
+                          ? 'NULL'
+                          : cond.operator === 'in' || cond.operator === 'not in'
+                            ? 'val1, val2, ...'
+                            : 'value'
+                      }
+                    />
                     <button
                       type="button"
                       onClick={() => removeCondition(idx)}

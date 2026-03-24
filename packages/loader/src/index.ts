@@ -3,7 +3,6 @@ export { defineGtfsSchema, derivedTable } from './schema.js';
 
 export type {
   CloseOptions,
-  CountOptions,
   GtfsLoader,
   GtfsValidationResult,
   GtfsLoaderOptions,
@@ -14,11 +13,9 @@ export type {
   ImportProgressTarget,
   ImportTargetKind,
   ImportTargetState,
-  LoadGtfsTablesOptions,
   SqlBindMap,
   SqlBindValue,
   SqliteStorageMode,
-  TableReadOptions,
 } from './types.js';
 
 export type {
@@ -45,4 +42,7 @@ export type {
   SourceReadColumns,
   SourceReadOptions,
   SourceReadRow,
+  WhereInput,
 } from './schema-types.js';
+
+export type { WhereExpr, WhereExprBuilder, WhereOp } from './where.js';

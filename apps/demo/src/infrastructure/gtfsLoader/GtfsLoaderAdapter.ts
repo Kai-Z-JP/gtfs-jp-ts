@@ -1,14 +1,13 @@
 import {
-  type CountOptions,
   createGtfsLoader,
   type GtfsLoader,
-  type GtfsSchemaDefinition,
   type GtfsValidationResult,
   type ImportGtfsZipResult,
   type ImportProgressEvent,
   type SqliteStorageMode,
 } from '@gtfs-jp/loader';
-import type { GtfsJpV4TableName, GtfsRow } from '@gtfs-jp/types';
+import { type GtfsDatabase } from '@gtfs-jp/loader/kysely';
+import type { Kysely } from 'kysely';
 
 import type { GtfsLoaderPort } from './GtfsLoaderPort';
 import { createSampleSchema, sampleRuntime } from './schema';
@@ -19,7 +18,8 @@ type GtfsLoaderAdapterOptions = {
 };
 
 export class GtfsLoaderAdapter implements GtfsLoaderPort {
-  private loader: GtfsLoader<GtfsSchemaDefinition> | undefined;
+  private loader: GtfsLoader | undefined;
+  private kyselyDb: Kysely<GtfsDatabase> | undefined;
   private desiredDerivedTablesEnabled = true;
   private currentDerivedTablesEnabled = true;
 
@@ -42,6 +42,7 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
 
     await this.loader.close();
     this.loader = undefined;
+    this.kyselyDb = undefined;
   }
 
   async clearDatabase(): Promise<void> {
@@ -67,36 +68,18 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
     return await loader.importZip(file, { onProgress });
   }
 
-  async readRows(tableName: string, limit: number): Promise<GtfsRow[]> {
-    const loader = this.requireLoader();
-    return await loader.readRows(tableName, { limit });
-  }
-
-  async readTable<TName extends GtfsJpV4TableName>(
-    tableName: TName,
-    options?: { columns?: readonly string[] },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): Promise<any[]> {
-    const loader = this.requireLoader();
-    return await loader.readTable(tableName, options);
-  }
-
   async validate(): Promise<GtfsValidationResult> {
     const loader = this.requireLoader();
     return await loader.validate();
   }
 
-  async count(tableName: string, options?: CountOptions): Promise<number> {
+  getKyselyDb(): Kysely<GtfsDatabase> {
     const loader = this.requireLoader();
-    return await loader.count(tableName, options);
+    this.kyselyDb ??= loader.db();
+    return this.kyselyDb;
   }
 
-  async query(sql: string): Promise<GtfsRow[]> {
-    const loader = this.requireLoader();
-    return await loader.query(sql);
-  }
-
-  private requireLoader(): GtfsLoader<GtfsSchemaDefinition> {
+  private requireLoader(): GtfsLoader {
     if (!this.loader) {
       throw new Error('Loader is not open');
     }
@@ -120,6 +103,7 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
 
     await this.loader.close();
     this.loader = this.createLoader(this.desiredDerivedTablesEnabled);
+    this.kyselyDb = undefined;
     this.currentDerivedTablesEnabled = this.desiredDerivedTablesEnabled;
     await this.loader.open();
   }
