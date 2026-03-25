@@ -69,3 +69,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "v$VERSION"
           git push origin "v$VERSION"
+
+      - name: Back-merge beta into develop
+        if: steps.version.outputs.changed == 'true' && github.ref_name == 'beta'
+        run: |
+          set -euo pipefail
+          git fetch origin develop beta
+          git switch -C develop-sync origin/develop
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/beta
+          git push origin HEAD:develop
