@@ -11,6 +11,7 @@ import {
   reduceImportProgressState,
   type StatusMessage,
   type StatusType,
+  type OrderCondition,
   type WhereCondition,
 } from '../../domain/gtfsWorkbench';
 import {
@@ -62,7 +63,11 @@ export type WorkbenchActions = {
   refreshTables: () => Promise<void>;
   importZip: (file: File | undefined) => Promise<void>;
   clearDb: () => Promise<void>;
-  readRows: (columns?: string[], whereConditions?: WhereCondition[]) => Promise<void>;
+  readRows: (
+    columns?: string[],
+    whereConditions?: WhereCondition[],
+    orderConditions?: OrderCondition[],
+  ) => Promise<void>;
   getTableColumns: (tableName: string) => Promise<string[]>;
 };
 
@@ -387,7 +392,11 @@ export function useGtfsWorkbench(): {
   }, []);
 
   const readRows = useCallback(
-    async (columns?: string[], whereConditions?: WhereCondition[]) => {
+    async (
+      columns?: string[],
+      whereConditions?: WhereCondition[],
+      orderConditions?: OrderCondition[],
+    ) => {
       if (!loaderRef.current) {
         return;
       }
@@ -429,6 +438,10 @@ export function useGtfsWorkbench(): {
           } else {
             q = q.where(cond.column, cond.operator, cond.value);
           }
+        }
+
+        for (const ord of orderConditions ?? []) {
+          q = q.orderBy(ord.column, ord.direction);
         }
 
         const loadedRows = (await q.limit(parsedLimit.value).execute()) as GtfsRow[];

@@ -24,6 +24,14 @@ export type WhereCondition = {
   value: string;
 };
 
+export const ORDER_DIRECTIONS = ['asc', 'desc'] as const;
+export type OrderDirection = (typeof ORDER_DIRECTIONS)[number];
+
+export type OrderCondition = {
+  column: string;
+  direction: OrderDirection;
+};
+
 export type StatusType = 'ok' | 'warn' | 'error';
 
 export type StatusMessage = {
