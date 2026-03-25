@@ -85,6 +85,8 @@ await loader.importZip(file, {
 });
 ```
 
+既知の GTFS-JP テーブルでは、入力ヘッダに存在しない非必須列もスキーマに基づいて DB 上へ作成されます。これらの列の値は `NULL` として補完されるため、`selectAll()` や introspection で安定した列集合を扱えます。
+
 ## Derived Tables
 
 ソーステーブルから派生テーブルを定義し、インポート時に自動 materialize できます。
@@ -121,7 +123,7 @@ const loader = createGtfsLoader({ schema });
 ```ts
 const summary = await loader
   .db()
-  .selectFrom('route_summary')  // 型補完が効く
+  .selectFrom('route_summary') // 型補完が効く
   .selectAll()
   .execute();
 // summary[0].route_id: string, summary[0].trip_count: number
@@ -193,17 +195,17 @@ JS builder の `context` には以下のメソッドがあります:
 
 ### `GtfsLoader` メソッド
 
-| メソッド                    | 説明                                                               |
-| --------------------------- | ------------------------------------------------------------------ |
-| `open()`                    | DB を開く                                                          |
-| `close(options?)`           | DB を閉じる (`{ unlink: true }` で OPFS ファイル削除)              |
-| `reset()`                   | DB を削除して再作成                                                |
-| `importZip(file, options?)` | GTFS-JP ZIP をインポート                                           |
-| `validate()`                | 必須テーブルの存在を検証し `GtfsValidationResult` を返す           |
+| メソッド                    | 説明                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `open()`                    | DB を開く                                                                                                          |
+| `close(options?)`           | DB を閉じる (`{ unlink: true }` で OPFS ファイル削除)                                                              |
+| `reset()`                   | DB を削除して再作成                                                                                                |
+| `importZip(file, options?)` | GTFS-JP ZIP をインポート                                                                                           |
+| `validate()`                | 必須テーブルの存在を検証し `GtfsValidationResult` を返す                                                           |
 | `db()`                      | [Kysely](https://kysely.dev/) インスタンスを返す。スキーマに派生テーブルが含まれる場合、それらも型付きでクエリ可能 |
-| `listTables()`              | 全テーブル名を取得                                                 |
-| `listGtfsTables()`          | GTFS テーブル名のみ取得                                            |
-| `hasTable(name)`            | テーブルの存在確認                                                 |
+| `listTables()`              | 全テーブル名を取得                                                                                                 |
+| `listGtfsTables()`          | GTFS テーブル名のみ取得                                                                                            |
+| `hasTable(name)`            | テーブルの存在確認                                                                                                 |
 
 ## License
 

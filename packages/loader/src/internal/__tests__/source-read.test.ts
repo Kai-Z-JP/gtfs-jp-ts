@@ -52,4 +52,32 @@ describe('readTypedGtfsSourceRows', () => {
       },
     ]);
   });
+
+  it('preserves null values for supplemented non-required columns', async () => {
+    const session = {
+      execRows: async () => [
+        {
+          route_id: 'R1',
+          agency_id: 'A1',
+          route_short_name: null,
+          route_type: 3,
+          route_sort_order: null,
+        },
+      ],
+    };
+
+    const rows = await readTypedGtfsSourceRows(session as never, 'routes', {
+      columns: ['route_id', 'agency_id', 'route_short_name', 'route_type', 'route_sort_order'],
+    });
+
+    expect(rows).toEqual([
+      {
+        route_id: 'R1',
+        agency_id: 'A1',
+        route_short_name: null,
+        route_type: 3,
+        route_sort_order: null,
+      },
+    ]);
+  });
 });

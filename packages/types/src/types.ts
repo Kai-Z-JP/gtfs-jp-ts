@@ -32,7 +32,7 @@ export type GtfsJpV4ColumnsByTableName<TName extends GtfsJpV4TableName> =
   GtfsJpV4SchemaEntryByName<TName>['columns'];
 
 type ValueFromColumn<C extends GtfsJpV4ColumnSchema> = C['values'] extends readonly (infer TValue)[]
-  ? TValue
+  ? Extract<TValue, string | number>
   : C['kind'] extends 'number'
     ? number
     : string;
@@ -42,19 +42,12 @@ type ColumnNames<TColumns extends Record<string, GtfsJpV4ColumnSchema>> = Extrac
   string
 >;
 
-type RequiredColumnNames<TColumns extends Record<string, GtfsJpV4ColumnSchema>> = {
-  [K in ColumnNames<TColumns>]: TColumns[K]['required'] extends true ? K : never;
-}[ColumnNames<TColumns>];
-
-type OptionalColumnNames<TColumns extends Record<string, GtfsJpV4ColumnSchema>> = Exclude<
-  ColumnNames<TColumns>,
-  RequiredColumnNames<TColumns>
->;
+type RowValueFromColumn<C extends GtfsJpV4ColumnSchema> = C['required'] extends true
+  ? ValueFromColumn<C>
+  : ValueFromColumn<C> | null;
 
 export type RowFromColumns<TColumns extends Record<string, GtfsJpV4ColumnSchema>> = {
-  [K in RequiredColumnNames<TColumns>]: ValueFromColumn<TColumns[K]>;
-} & {
-  [K in OptionalColumnNames<TColumns>]?: ValueFromColumn<TColumns[K]>;
+  [K in ColumnNames<TColumns>]: RowValueFromColumn<TColumns[K]>;
 };
 
 export type GtfsJpV4TableRow<TName extends GtfsJpV4TableName> = RowFromColumns<

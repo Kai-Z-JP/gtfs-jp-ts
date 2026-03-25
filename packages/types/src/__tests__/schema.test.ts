@@ -45,18 +45,13 @@ describe('GTFS-JP v4 schema', () => {
     expect(officeSchema.columns.office_id.required).toBe(true);
     expect(officeSchema.columns.office_name.required).toBe(true);
 
-    const row: GtfsJpV4TableRow<'routes'> = {
-      route_id: 'R1',
-      agency_id: 'A1',
-      route_type: 3,
-    };
-    expect(row.route_id).toBe('R1');
-    expect(row.route_short_name).toBeUndefined();
-
     const officeRow: GtfsJpV4TableRow<'office_jp'> = {
       office_id: 'OFF001',
       office_name: 'Main Office',
+      office_url: null,
+      office_phone: null,
     };
     expect(officeRow.office_id).toBe('OFF001');
+    expect(officeRow.office_url).toBeNull();
   });
 });

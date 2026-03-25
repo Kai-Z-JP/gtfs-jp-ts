@@ -13,7 +13,8 @@ export type WriteChunkInput = {
 };
 
 export type TableWriteState = {
-  headers: string[];
+  writeHeaders: string[];
+  sourceIndexByWriteHeader: number[];
   sawData: boolean;
   rowsWritten: number;
 };
@@ -50,10 +51,26 @@ const createTable = async (
   await session.exec(`CREATE TABLE ${quoteIdentifier(tableName)} (${columnsSql});`);
 };
 
+const resolveWriteHeaders = (tableName: string, sourceHeaders: string[]): string[] => {
+  if (!isGtfsJpV4TableName(tableName)) {
+    return sourceHeaders;
+  }
+
+  const schema = getGtfsJpV4TableSchema(tableName);
+  const existing = new Set(sourceHeaders);
+  const supplementalHeaders = Object.entries(schema.columns)
+    .filter(([, column]) => column.required !== true)
+    .map(([columnName]) => columnName)
+    .filter((columnName) => !existing.has(columnName));
+
+  return [...sourceHeaders, ...supplementalHeaders];
+};
+
 const insertBatch = async (
   session: SqliteSession,
   tableName: string,
   headers: string[],
+  sourceIndexByWriteHeader: number[],
   rows: string[][],
 ): Promise<void> => {
   if (rows.length === 0) {
@@ -63,7 +80,10 @@ const insertBatch = async (
   const quotedHeaders = headers.map(quoteIdentifier).join(', ');
   const valuesSql = rows
     .map((row) => {
-      const cells = headers.map((_, index) => toSqlLiteral(row[index]));
+      const cells = headers.map((_, index) => {
+        const sourceIndex = sourceIndexByWriteHeader[index];
+        return toSqlLiteral(sourceIndex >= 0 ? row[sourceIndex] : undefined);
+      });
       return `(${cells.join(', ')})`;
     })
     .join(', ');
@@ -83,9 +103,13 @@ export const writeTableChunk = async (
   rowsWritten: number;
 }> => {
   if (chunk.isFirst && chunk.headers.length > 0) {
-    await createTable(session, chunk.tableName, chunk.headers);
+    const writeHeaders = resolveWriteHeaders(chunk.tableName, chunk.headers);
+    const sourceHeaderIndex = new Map(chunk.headers.map((header, index) => [header, index]));
+
+    await createTable(session, chunk.tableName, writeHeaders);
     stateByTable.set(chunk.tableName, {
-      headers: chunk.headers,
+      writeHeaders,
+      sourceIndexByWriteHeader: writeHeaders.map((header) => sourceHeaderIndex.get(header) ?? -1),
       rowsWritten: 0,
       sawData: false,
     });
@@ -98,7 +122,13 @@ export const writeTableChunk = async (
 
   for (let index = 0; index < chunk.rows.length; index += insertBatchRowCount) {
     const batch = chunk.rows.slice(index, index + insertBatchRowCount);
-    await insertBatch(session, chunk.tableName, tableState.headers, batch);
+    await insertBatch(
+      session,
+      chunk.tableName,
+      tableState.writeHeaders,
+      tableState.sourceIndexByWriteHeader,
+      batch,
+    );
   }
 
   tableState.rowsWritten += chunk.rows.length;

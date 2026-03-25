@@ -40,13 +40,9 @@ import type { GtfsJpV4TableRow } from '@gtfs-jp/types';
 
 // routes テーブルの行型が自動導出される
 type RouteRow = GtfsJpV4TableRow<'routes'>;
-// { route_id: string; agency_id: string | undefined; route_type: number; ... }
+// { route_id: string; agency_id: string; route_short_name: string | null; route_type: number; ... }
 
-const row: RouteRow = {
-  route_id: 'R1',
-  agency_id: 'A1',
-  route_type: 3,
-};
+// known GTFS-JP tables are normalized to always expose non-required columns as `null`-able keys
 ```
 
 ### ファイル名とテーブル名の相互変換
