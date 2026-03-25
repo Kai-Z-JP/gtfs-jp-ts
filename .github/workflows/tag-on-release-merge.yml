@@ -1,9 +1,10 @@
-name: Tag On Main
+name: Tag On Release Merge
 
 on:
   push:
     branches:
       - main
+      - beta
 
 jobs:
   tag:
@@ -23,6 +24,7 @@ jobs:
       - name: Detect version change
         id: version
         run: |
+          set -euo pipefail
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           BEFORE_SHA="${{ github.event.before }}"
 
@@ -44,6 +46,7 @@ jobs:
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Create tag
         if: steps.version.outputs.changed == 'true'
