@@ -136,9 +136,11 @@ jobs:
       - name: Commit and push release branch
         env:
           RELEASE_BRANCH: ${{ steps.version.outputs.branch }}
+          SOURCE_REF: ${{ steps.strategy.outputs.checkout_ref }}
           COMMIT_MESSAGE: 'chore: bump versions to ${{ steps.version.outputs.version }}'
         run: |
           set -euo pipefail
+          git fetch origin "$SOURCE_REF" "$RELEASE_BRANCH" || true
           git switch -C "$RELEASE_BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
