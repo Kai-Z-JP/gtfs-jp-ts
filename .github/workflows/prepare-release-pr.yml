@@ -139,6 +139,7 @@ jobs:
           COMMIT_MESSAGE: 'chore: bump versions to ${{ steps.version.outputs.version }}'
         run: |
           set -euo pipefail
+          git fetch origin "$RELEASE_BRANCH" || true
           git switch -C "$RELEASE_BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
