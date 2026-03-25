@@ -5,6 +5,7 @@ import type {
   ParseWorkerRequest,
   ParseWorkerResponse,
 } from './internal/import/protocol.js';
+import { getErrorMessage } from './internal/error.js';
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const textDecoder = new TextDecoder('utf-8');
@@ -27,19 +28,11 @@ const normalizeHeaderName = (header: string, fileName: string, index: number): s
 const hasNonEmptyCell = (row: string[]): boolean =>
   row.some((value) => value !== undefined && value.trim() !== '');
 
-const toErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-};
-
 const postError = (requestId: number, error: unknown): void => {
   const response: ParseWorkerErrorResponse = {
     type: 'error',
     requestId,
-    error: toErrorMessage(error),
+    error: getErrorMessage(error),
   };
   runtime.postMessage(response);
 };

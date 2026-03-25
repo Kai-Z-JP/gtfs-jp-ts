@@ -71,6 +71,73 @@ export type WorkbenchActions = {
   getTableColumns: (tableName: string) => Promise<string[]>;
 };
 
+const getNestedErrorMessage = (
+  error: unknown,
+  seen = new WeakSet<object>(),
+): string | undefined => {
+  if (typeof error === 'string') {
+    return error.trim() ? error : undefined;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+
+  if (seen.has(error)) {
+    return undefined;
+  }
+  seen.add(error);
+
+  const errorRecord = error as Record<string, unknown>;
+
+  for (const key of ['message', 'reason', 'error'] as const) {
+    const value = errorRecord[key];
+    const message = getNestedErrorMessage(value, seen);
+    if (message) {
+      return message;
+    }
+  }
+
+  return undefined;
+};
+
+const safeJsonStringify = (error: unknown): string | undefined => {
+  const seen = new WeakSet<object>();
+
+  try {
+    return JSON.stringify(error, (_key, value: unknown) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+      }
+
+      return value;
+    });
+  } catch {
+    return undefined;
+  }
+};
+
+const getErrorMessage = (error: unknown): string => {
+  const message = getNestedErrorMessage(error);
+  if (message) {
+    return message;
+  }
+
+  const serialized = safeJsonStringify(error);
+  if (serialized && serialized !== '{}') {
+    return serialized;
+  }
+
+  return String(error);
+};
+
 const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState => ({
   storage: 'memory',
   derivedTablesEnabled: true,
@@ -196,7 +263,7 @@ const handleError = (
   prefix: string,
   setStatusMessage: (message: string, type: StatusType) => void,
 ): void => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error);
   setStatusMessage(`${prefix}: ${message}`, 'error');
 };
 
