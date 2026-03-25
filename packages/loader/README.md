@@ -116,6 +116,17 @@ const schema = defineGtfsSchema({
 const loader = createGtfsLoader({ schema });
 ```
 
+派生テーブルは `db()` で型安全にクエリできます:
+
+```ts
+const summary = await loader
+  .db()
+  .selectFrom('route_summary')  // 型補完が効く
+  .selectAll()
+  .execute();
+// summary[0].route_id: string, summary[0].trip_count: number
+```
+
 ### Build Strategies
 
 **SQL** — 単一 SELECT 文:
@@ -189,7 +200,7 @@ JS builder の `context` には以下のメソッドがあります:
 | `reset()`                   | DB を削除して再作成                                                |
 | `importZip(file, options?)` | GTFS-JP ZIP をインポート                                           |
 | `validate()`                | 必須テーブルの存在を検証し `GtfsValidationResult` を返す           |
-| `db()`                      | [Kysely](https://kysely.dev/) インスタンスを返す（型安全クエリ用） |
+| `db()`                      | [Kysely](https://kysely.dev/) インスタンスを返す。スキーマに派生テーブルが含まれる場合、それらも型付きでクエリ可能 |
 | `listTables()`              | 全テーブル名を取得                                                 |
 | `listGtfsTables()`          | GTFS テーブル名のみ取得                                            |
 | `hasTable(name)`            | テーブルの存在確認                                                 |
