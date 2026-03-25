@@ -106,6 +106,23 @@ export function WorkflowPanel({
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-2">
+            <Button disabled={busy || isOpen} onClick={() => void onOpen()}>
+              Open DB
+            </Button>
+            <Button variant="outline" disabled={busy || !isOpen} onClick={() => void onClose()}>
+              Close DB
+            </Button>
+            <Button
+              className="col-span-2"
+              variant="outline"
+              disabled={busy || !isOpen}
+              onClick={() => void onRefreshTables()}
+            >
+              Refresh Tables
+            </Button>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="zip-file">GTFS ZIP</Label>
             <Input
@@ -136,35 +153,16 @@ export function WorkflowPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <Button disabled={busy || isOpen} onClick={() => void onOpen()}>
-              Open DB
-            </Button>
             <Button
-              variant="secondary"
               disabled={busy || !isOpen}
               onClick={() => void onImportZip(fileInputRef.current?.files?.[0])}
             >
               <FileArchive className="h-4 w-4" />
               Import ZIP
             </Button>
-            <Button
-              variant="outline"
-              disabled={busy || !isOpen}
-              onClick={() => void onRefreshTables()}
-            >
-              List Tables
-            </Button>
             <Button variant="outline" disabled={busy || !isOpen} onClick={() => void onClearDb()}>
-              Clear DB
-            </Button>
-            <Button
-              variant="ghost"
-              className="col-span-2"
-              disabled={busy || !isOpen}
-              onClick={() => void onClose()}
-            >
               <X className="h-4 w-4" />
-              Close DB
+              Clear DB
             </Button>
           </div>
 
