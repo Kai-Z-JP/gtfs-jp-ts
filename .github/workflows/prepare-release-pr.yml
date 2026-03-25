@@ -1,0 +1,69 @@
+name: Prepare Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to prepare
+        required: true
+        type: choice
+        options:
+          - beta
+          - stable
+      bump:
+        description: Version bump strategy
+        required: true
+        type: choice
+        options:
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
+          - patch
+          - minor
+          - major
+          - promote
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Bump version
+        id: version
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          NEXT_VERSION=$(node scripts/bump-version.mjs "$CHANNEL" "$BUMP")
+          node scripts/sync-versions.mjs
+          echo "version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=release/$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: bump versions to ${{ steps.version.outputs.version }}'
+          branch: ${{ steps.version.outputs.branch }}
+          base: main
+          delete-branch: false
+          title: 'chore: bump versions to ${{ steps.version.outputs.version }}'
+          body: |
+            Prepare a `${{ inputs.channel }}` release.
+
+            - Channel: `${{ inputs.channel }}`
+            - Bump: `${{ inputs.bump }}`
+            - Version: `${{ steps.version.outputs.version }}`
