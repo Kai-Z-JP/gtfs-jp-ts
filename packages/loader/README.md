@@ -6,10 +6,10 @@
 ## Install
 
 ```bash
-npm install @gtfs-jp/loader @gtfs-jp/types
+npm install @gtfs-jp/loader @gtfs-jp/types kysely
 ```
 
-`@sqlite.org/sqlite-wasm` が peer dependency として必要です。
+`kysely` が peer dependency として必要です。
 
 Vite を使う場合は、SQLite WASM の build asset 名を固定するために `@gtfs-jp/loader/vite` の plugin を追加してください。
 
@@ -37,11 +37,14 @@ const result = await loader.importZip(file, {
 
 console.log(`${result.tablesImported} tables, ${result.rowsImported} rows`);
 
-// 型付き読み取り
-const routes = await loader.readTable('routes', {
-  limit: 100,
-  orderBy: 'route_id',
-});
+// Kysely で型付きクエリ
+const routes = await loader
+  .db()
+  .selectFrom('routes')
+  .selectAll()
+  .orderBy('route_id')
+  .limit(100)
+  .execute();
 
 await loader.close();
 ```
@@ -179,31 +182,17 @@ JS builder の `context` には以下のメソッドがあります:
 
 ### `GtfsLoader` メソッド
 
-| メソッド                     | 説明                                                  |
-| ---------------------------- | ----------------------------------------------------- |
-| `open()`                     | DB を開く                                             |
-| `close(options?)`            | DB を閉じる (`{ unlink: true }` で OPFS ファイル削除) |
-| `reset()`                    | DB を削除して再作成                                   |
-| `importZip(file, options?)`  | GTFS-JP ZIP をインポート                              |
-| `readTable(name, options?)`  | GTFS ソーステーブルを型付きで読み取り                 |
-| `readSource(name, options?)` | ソーステーブルをスキーマに基づく型変換付きで読み取り  |
-| `read(name, options?)`       | ソース/派生テーブルをスキーマ型で読み取り             |
-| `readRows(name, options?)`   | 任意のテーブルを `GtfsRow[]` で読み取り               |
-| `loadTables(options?)`       | 複数テーブルを一括読み取り                            |
-| `listTables()`               | 全テーブル名を取得                                    |
-| `listGtfsTables()`           | GTFS テーブル名のみ取得                               |
-| `hasTable(name)`             | テーブルの存在確認                                    |
-| `query(sql, bind?)`          | 任意の SQL を実行して結果を取得                       |
-| `exec(sql, bind?)`           | 任意の SQL を実行                                     |
-
-### `TableReadOptions`
-
-| オプション | 型                   | 説明                 |
-| ---------- | -------------------- | -------------------- |
-| `limit`    | `number`             | 取得行数の上限       |
-| `offset`   | `number`             | スキップする行数     |
-| `orderBy`  | `string \| string[]` | ソート対象のカラム   |
-| `columns`  | `string[]`           | 取得するカラムを指定 |
+| メソッド                    | 説明                                                               |
+| --------------------------- | ------------------------------------------------------------------ |
+| `open()`                    | DB を開く                                                          |
+| `close(options?)`           | DB を閉じる (`{ unlink: true }` で OPFS ファイル削除)              |
+| `reset()`                   | DB を削除して再作成                                                |
+| `importZip(file, options?)` | GTFS-JP ZIP をインポート                                           |
+| `validate()`                | 必須テーブルの存在を検証し `GtfsValidationResult` を返す           |
+| `db()`                      | [Kysely](https://kysely.dev/) インスタンスを返す（型安全クエリ用） |
+| `listTables()`              | 全テーブル名を取得                                                 |
+| `listGtfsTables()`          | GTFS テーブル名のみ取得                                            |
+| `hasTable(name)`            | テーブルの存在確認                                                 |
 
 ## License
 
