@@ -45,9 +45,10 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup --config tsup.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "build:deps": "pnpm --filter @gtfs-jp/types build",
+    "build": "pnpm build:deps && tsup --config tsup.config.ts",
+    "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build:deps && vitest run"
   },
   "dependencies": {
     "@gtfs-jp/types": "workspace:*",
