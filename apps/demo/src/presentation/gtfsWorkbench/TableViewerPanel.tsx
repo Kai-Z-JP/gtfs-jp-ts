@@ -28,7 +28,11 @@ type TableViewerPanelProps = {
   isOpen: boolean;
   onSelectedTableChange: (selectedTable: string) => void;
   onLimitChange: (limit: string) => void;
-  onReadRows: (columns?: string[], whereConditions?: WhereCondition[], orderConditions?: OrderCondition[]) => Promise<void>;
+  onReadRows: (
+    columns?: string[],
+    whereConditions?: WhereCondition[],
+    orderConditions?: OrderCondition[],
+  ) => Promise<void>;
   onGetTableColumns: (tableName: string) => Promise<string[]>;
 };
 
@@ -297,9 +301,7 @@ export function TableViewerPanel({
                 {orderConditions.map((ord, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     {idx > 0 && (
-                      <span className="w-8 text-right text-xs font-medium text-neutral-400">
-                        ,
-                      </span>
+                      <span className="w-8 text-right text-xs font-medium text-neutral-400">,</span>
                     )}
                     {idx === 0 && <span className="w-8" />}
                     <select
