@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/parse-worker.ts', 'src/vite.ts'],
+  entry: ['src/index.ts', 'src/parse-worker.ts', 'src/vite.ts', 'src/kysely.ts'],
   format: ['esm'],
   platform: 'browser',
   dts: true,
@@ -10,5 +10,5 @@ export default defineConfig({
   outDir: 'dist',
   skipNodeModulesBundle: true,
   noExternal: [/^(udsv|jszip)(\/.*)?$/],
-  external: ['@sqlite.org/sqlite-wasm', '@gtfs-jp/types'],
+  external: ['@sqlite.org/sqlite-wasm', '@gtfs-jp/types', 'kysely'],
 });

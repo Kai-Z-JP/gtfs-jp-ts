@@ -1,5 +1,3 @@
-import type { GtfsRow } from '@gtfs-jp/types';
-
 import type { SqlBindMap, SqlBindValue, SqliteStorageMode } from '../types.js';
 import { normalizeBind } from './sql.js';
 import { createPromiser, type SqlitePromiser } from './sqlite-worker.js';
@@ -74,10 +72,7 @@ export class SqliteSession {
     });
   }
 
-  async execRows<T extends GtfsRow>(
-    sql: string,
-    bind: Record<string, SqlBindValue> = {},
-  ): Promise<T[]> {
+  async execRows<T>(sql: string, bind: Record<string, SqlBindValue> = {}): Promise<T[]> {
     this.#ensureOpen();
 
     const response = await this.#promiser!('exec', {

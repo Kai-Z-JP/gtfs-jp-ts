@@ -1,6 +1,7 @@
 import type { GtfsJpV4TableName, GtfsJpV4TableRow, GtfsRow } from '@gtfs-jp/types';
 
 import type { SqlBindMap } from './sql-types.js';
+import type { WhereInput } from './where.js';
 
 export type MaterializationSource = 'gtfs-jp-v4';
 export type DerivedColumnKind = 'string' | 'number';
@@ -31,13 +32,17 @@ export type SourceReadColumns<TName extends GtfsJpV4TableName> = readonly Extrac
   string
 >[];
 
+export type { WhereInput };
+
 export type SourceReadOptions<
   TName extends GtfsJpV4TableName = GtfsJpV4TableName,
   TColumns extends SourceReadColumns<TName> | undefined = undefined,
 > = {
   limit?: number;
+  offset?: number;
   orderBy?: string | readonly string[];
   columns?: TColumns;
+  where?: WhereInput<GtfsJpV4TableRow<TName>>;
 };
 
 export type SourceReadRow<
@@ -138,18 +143,20 @@ export type DerivedTableDefinition<
 };
 
 export type GtfsSchemaDefinition<
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   TRuntime extends Record<string, unknown> = Record<string, unknown>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  TDerivedTables extends readonly DerivedTableDefinition<any, any, any>[] = readonly DerivedTableDefinition<any, any, any>[],
+  TDerivedTables extends readonly DerivedTableDefinition<any, any, any>[] =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    readonly DerivedTableDefinition<any, any, any>[],
 > = {
   sources?: MaterializationSource;
   derivedTables?: TDerivedTables;
+  /** @internal */
+  readonly _runtime?: TRuntime;
 };
 
 export type GtfsSchemaRuntime<TSchema extends GtfsSchemaDefinition> =
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  TSchema extends GtfsSchemaDefinition<infer TRuntime, any> ? TRuntime : Record<string, unknown>;
+  TSchema extends GtfsSchemaDefinition<infer TRuntime> ? TRuntime : Record<string, unknown>;
 
 export type DerivedTableName<TSchema extends GtfsSchemaDefinition> = NonNullable<
   TSchema['derivedTables']

@@ -1,3 +1,5 @@
+import { getGtfsJpV4TableSchema, isGtfsJpV4TableName } from '@gtfs-jp/types';
+
 import { quoteIdentifier, toSqlLiteral } from '../sql.js';
 import { SqliteSession } from '../session.js';
 
@@ -16,13 +18,35 @@ export type TableWriteState = {
   rowsWritten: number;
 };
 
+const getColumnSqlType = (tableName: string, columnName: string): 'REAL' | 'TEXT' => {
+  if (!isGtfsJpV4TableName(tableName)) {
+    return 'TEXT';
+  }
+  const schema = getGtfsJpV4TableSchema(tableName);
+  const column = (
+    schema.columns as Record<string, { kind?: string; values?: readonly unknown[] } | undefined>
+  )[columnName];
+  if (!column) {
+    return 'TEXT';
+  }
+  if (column.kind === 'number') {
+    return 'REAL';
+  }
+  if (column.values && column.values.length > 0 && typeof column.values[0] === 'number') {
+    return 'REAL';
+  }
+  return 'TEXT';
+};
+
 const createTable = async (
   session: SqliteSession,
   tableName: string,
   headers: string[],
 ): Promise<void> => {
   await session.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)};`);
-  const columnsSql = headers.map((header) => `${quoteIdentifier(header)} TEXT`).join(', ');
+  const columnsSql = headers
+    .map((header) => `${quoteIdentifier(header)} ${getColumnSqlType(tableName, header)}`)
+    .join(', ');
   await session.exec(`CREATE TABLE ${quoteIdentifier(tableName)} (${columnsSql});`);
 };
 

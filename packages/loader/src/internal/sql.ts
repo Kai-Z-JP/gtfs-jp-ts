@@ -1,4 +1,4 @@
-import type { SqlBindMap } from '../types.js';
+import type { SqlBindMap } from '../sql-types.js';
 
 const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -11,65 +11,6 @@ export const assertIdentifier = (identifier: string): void => {
 export const quoteIdentifier = (identifier: string): string => {
   assertIdentifier(identifier);
   return `"${identifier}"`;
-};
-
-const assertNonNegativeInteger = (name: string, value: number): void => {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer`);
-  }
-};
-
-export const buildOrderByClause = (orderBy?: string | readonly string[]): string => {
-  if (!orderBy) {
-    return '';
-  }
-
-  const columns = Array.isArray(orderBy) ? orderBy : [orderBy];
-  if (columns.length === 0) {
-    return '';
-  }
-
-  return ` ORDER BY ${columns.map((column) => quoteIdentifier(column)).join(', ')}`;
-};
-
-export const buildSelectClause = (columns?: readonly string[]): string => {
-  if (!columns || columns.length === 0) {
-    return 'SELECT *';
-  }
-
-  return `SELECT ${columns.map((column) => quoteIdentifier(column)).join(', ')}`;
-};
-
-export const buildLimitOffsetClause = (options: {
-  limit?: number;
-  offset?: number;
-}): { clause: string; bind: SqlBindMap } => {
-  const bind: SqlBindMap = {};
-  const parts: string[] = [];
-  const { limit } = options;
-  const offset = options.offset ?? 0;
-
-  assertNonNegativeInteger('offset', offset);
-
-  if (limit !== undefined) {
-    assertNonNegativeInteger('limit', limit);
-    parts.push('LIMIT :limit');
-    bind.limit = limit;
-  }
-
-  if (offset > 0) {
-    if (limit === undefined) {
-      parts.push('LIMIT -1');
-    }
-    parts.push('OFFSET :offset');
-    bind.offset = offset;
-  }
-
-  if (parts.length === 0) {
-    return { clause: '', bind };
-  }
-
-  return { clause: ` ${parts.join(' ')}`, bind };
 };
 
 export const normalizeBind = (bind: SqlBindMap): SqlBindMap => {

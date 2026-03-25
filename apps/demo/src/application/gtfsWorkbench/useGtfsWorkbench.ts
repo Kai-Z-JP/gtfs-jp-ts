@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import type { GtfsRow } from '@gtfs-jp/types';
 import type { ImportProgressEvent, SqliteStorageMode } from '@gtfs-jp/loader';
 
 import {
   createInitialImportProgress,
-  parseLimit,
-  reduceImportProgressState,
   type ImportProgressState,
   type OpfsSupport,
+  parseLimit,
+  reduceImportProgressState,
   type StatusMessage,
   type StatusType,
+  type WhereCondition,
 } from '../../domain/gtfsWorkbench';
 import {
   detectOpfsSupport,
@@ -60,7 +61,8 @@ export type WorkbenchActions = {
   refreshTables: () => Promise<void>;
   importZip: (file: File | undefined) => Promise<void>;
   clearDb: () => Promise<void>;
-  readRows: () => Promise<void>;
+  readRows: (columns?: string[], whereConditions?: WhereCondition[]) => Promise<void>;
+  getTableColumns: (tableName: string) => Promise<string[]>;
 };
 
 const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState => ({
@@ -192,11 +194,16 @@ const handleError = (
   setStatusMessage(`${prefix}: ${message}`, 'error');
 };
 
-export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchActions } {
+export function useGtfsWorkbench(): {
+  state: WorkbenchState;
+  actions: WorkbenchActions;
+  loader: GtfsLoaderPort | null;
+} {
   const opfsSupport = useMemo(() => detectOpfsSupport(), []);
   const [state, dispatch] = useReducer(workbenchReducer, opfsSupport, createInitialWorkbenchState);
 
   const loaderRef = useRef<GtfsLoaderPort | undefined>(undefined);
+  const [loader, setLoader] = useState<GtfsLoaderPort | null>(null);
 
   const setStatusMessage = useCallback((message: string, type: StatusType) => {
     dispatch({ type: 'set-status', status: { message, type } });
@@ -214,6 +221,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
 
     await loaderRef.current.close();
     loaderRef.current = undefined;
+    setLoader(null);
   }, []);
 
   useEffect(() => {
@@ -258,6 +266,7 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
       nextLoader.setDerivedTablesEnabled(state.derivedTablesEnabled);
       await nextLoader.open();
       loaderRef.current = nextLoader;
+      setLoader(nextLoader);
 
       dispatch({ type: 'connection-opened' });
       setStatusMessage(
@@ -369,33 +378,69 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
     }
   }, [refreshTables, setStatusMessage]);
 
-  const readRows = useCallback(async () => {
-    if (!loaderRef.current) {
-      return;
-    }
+  const getTableColumns = useCallback(async (tableName: string): Promise<string[]> => {
+    if (!loaderRef.current || !tableName) return [];
+    const tables = await loaderRef.current.getKyselyDb().introspection.getTables();
+    const columns = tables.find((t) => t.name === tableName)?.columns ?? [];
+    return columns.map((c) => c.name);
+  }, []);
 
-    if (!state.selectedTable) {
-      setStatusMessage('テーブルを選択してください', 'warn');
-      return;
-    }
+  const readRows = useCallback(
+    async (columns?: string[], whereConditions?: WhereCondition[]) => {
+      if (!loaderRef.current) {
+        return;
+      }
 
-    const parsedLimit = parseLimit(state.limit);
-    if (!parsedLimit.ok) {
-      setStatusMessage(parsedLimit.errorMessage, 'warn');
-      return;
-    }
+      if (!state.selectedTable) {
+        setStatusMessage('テーブルを選択してください', 'warn');
+        return;
+      }
 
-    dispatch({ type: 'set-busy', busy: true });
-    try {
-      const loadedRows = await loaderRef.current.readRows(state.selectedTable, parsedLimit.value);
-      dispatch({ type: 'set-rows', rows: loadedRows });
-      setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
-    } catch (error) {
-      handleError(error, `${state.selectedTable} の読込に失敗しました`, setStatusMessage);
-    } finally {
-      dispatch({ type: 'set-busy', busy: false });
-    }
-  }, [setStatusMessage, state.limit, state.selectedTable]);
+      const parsedLimit = parseLimit(state.limit);
+      if (!parsedLimit.ok) {
+        setStatusMessage(parsedLimit.errorMessage, 'warn');
+        return;
+      }
+
+      dispatch({ type: 'set-busy', busy: true });
+      try {
+        const db = loaderRef.current.getKyselyDb();
+        const hasColumns = columns && columns.length > 0;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let q = db.selectFrom(state.selectedTable as any);
+
+        if (hasColumns) {
+          q = q.select(columns);
+        } else {
+          q = q.selectAll();
+        }
+
+        for (const cond of whereConditions ?? []) {
+          if (cond.operator === 'is' || cond.operator === 'is not') {
+            q = q.where(cond.column, cond.operator, null);
+          } else if (cond.operator === 'in' || cond.operator === 'not in') {
+            const values = cond.value
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean);
+            q = q.where(cond.column, cond.operator, values);
+          } else {
+            q = q.where(cond.column, cond.operator, cond.value);
+          }
+        }
+
+        const loadedRows = (await q.limit(parsedLimit.value).execute()) as GtfsRow[];
+        dispatch({ type: 'set-rows', rows: loadedRows });
+        setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
+      } catch (error) {
+        handleError(error, `${state.selectedTable} の読込に失敗しました`, setStatusMessage);
+      } finally {
+        dispatch({ type: 'set-busy', busy: false });
+      }
+    },
+    [setStatusMessage, state.limit, state.selectedTable],
+  );
 
   const actions = useMemo<WorkbenchActions>(
     () => ({
@@ -409,12 +454,23 @@ export function useGtfsWorkbench(): { state: WorkbenchState; actions: WorkbenchA
       importZip,
       clearDb,
       readRows,
+      getTableColumns,
     }),
-    [clearDb, closeDb, importZip, openDb, readRows, refreshTables, setDerivedTablesEnabled],
+    [
+      clearDb,
+      closeDb,
+      getTableColumns,
+      importZip,
+      openDb,
+      readRows,
+      refreshTables,
+      setDerivedTablesEnabled,
+    ],
   );
 
   return {
     state,
     actions,
+    loader,
   };
 }

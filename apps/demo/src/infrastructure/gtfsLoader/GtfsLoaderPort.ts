@@ -1,5 +1,14 @@
-import type { GtfsRow } from '@gtfs-jp/types';
-import type { ImportProgressEvent, ImportGtfsZipResult } from '@gtfs-jp/loader';
+import type {
+  GtfsValidationResult,
+  ImportGtfsZipResult,
+  ImportProgressEvent,
+  SourceReadColumns,
+  SourceReadRow,
+} from '@gtfs-jp/loader';
+import type { GtfsDatabase } from '@gtfs-jp/loader/kysely';
+import type { Kysely } from 'kysely';
+
+export type { GtfsValidationResult, SourceReadColumns, SourceReadRow, GtfsDatabase };
 
 export interface GtfsLoaderPort {
   open(): Promise<void>;
@@ -17,5 +26,7 @@ export interface GtfsLoaderPort {
     onProgress: (event: ImportProgressEvent) => void,
   ): Promise<ImportGtfsZipResult>;
 
-  readRows(tableName: string, limit: number): Promise<GtfsRow[]>;
+  validate(): Promise<GtfsValidationResult>;
+
+  getKyselyDb(): Kysely<GtfsDatabase>;
 }

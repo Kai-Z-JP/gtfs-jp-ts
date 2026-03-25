@@ -1,28 +1,19 @@
 import {
+  GTFS_JP_V4_SCHEMA,
   GTFS_JP_V4_TABLE_NAMES,
   type GtfsJpV4TableName,
-  type GtfsJpV4TableRow,
-  type GtfsRow,
   isGtfsJpV4TableName,
 } from '@gtfs-jp/types';
+import type { Kysely } from 'kysely';
 
-import type {
-  GtfsSchemaDefinition,
-  GtfsSchemaRuntime,
-  GtfsSchemaTableName,
-  GtfsSchemaTableRow,
-  SourceReadColumns,
-  SourceReadRow,
-} from './schema-types.js';
+import type { GtfsSchemaDefinition, GtfsSchemaRuntime } from './schema-types.js';
 import type {
   GtfsLoader,
   GtfsLoaderOptions,
+  GtfsValidationResult,
   ImportGtfsZipOptions,
   ImportGtfsZipResult,
-  LoadGtfsTablesOptions,
-  SqlBindMap,
   SqliteStorageMode,
-  TableReadOptions,
 } from './types.js';
 import { importZipViaMemoryStage } from './internal/import/import-memory-stage.js';
 import { importZipIntoSession } from './internal/import/import-pipeline.js';
@@ -31,31 +22,10 @@ import {
   isInternalMaterializationTable,
   runDerivedMaterialization,
 } from './internal/materialization.js';
-import {
-  assertIdentifier,
-  buildLimitOffsetClause,
-  buildOrderByClause,
-  buildSelectClause,
-  quoteIdentifier,
-} from './internal/sql.js';
-import { readTypedGtfsSourceRows } from './internal/source-read.js';
+import { createSessionDb } from './internal/session-db.js';
 import { SqliteSession } from './internal/session.js';
 import { getOpfsUnavailableReason } from './internal/storage.js';
-
-const readRowsFromSession = async (
-  session: SqliteSession,
-  tableName: string,
-  options: TableReadOptions = {},
-): Promise<GtfsRow[]> => {
-  assertIdentifier(tableName);
-
-  const selectClause = buildSelectClause(options.columns);
-  const orderByClause = buildOrderByClause(options.orderBy);
-  const { clause: limitOffsetClause, bind } = buildLimitOffsetClause(options);
-
-  const sql = `${selectClause} FROM ${quoteIdentifier(tableName)}${orderByClause}${limitOffsetClause}`;
-  return await session.execRows<GtfsRow>(sql, bind);
-};
+import { GtfsDatabase } from './kysely.js';
 
 class GtfsLoaderImpl<
   TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition,
@@ -65,6 +35,7 @@ class GtfsLoaderImpl<
   #session: SqliteSession;
   #compiledSchema = compileGtfsSchema(undefined);
   #runtime: GtfsSchemaRuntime<TSchema>;
+  #db: Kysely<GtfsDatabase> | undefined;
 
   constructor(options: GtfsLoaderOptions<TSchema> = {}) {
     this.#mode = options.storage ?? 'memory';
@@ -82,6 +53,11 @@ class GtfsLoaderImpl<
     return this.#mode;
   }
 
+  db(): Kysely<GtfsDatabase> {
+    this.#db ??= createSessionDb(this.#session);
+    return this.#db;
+  }
+
   async open(): Promise<void> {
     if (this.#mode === 'opfs') {
       const reason = getOpfsUnavailableReason();
@@ -94,6 +70,7 @@ class GtfsLoaderImpl<
   }
 
   async close(options: { unlink?: boolean } = {}): Promise<void> {
+    this.#db = undefined;
     await this.#session.close(options);
   }
 
@@ -124,69 +101,6 @@ class GtfsLoaderImpl<
     );
 
     return rows.length > 0;
-  }
-
-  async read<TName extends GtfsSchemaTableName<TSchema>>(
-    tableName: TName,
-    options: TableReadOptions = {},
-  ): Promise<Array<GtfsSchemaTableRow<TSchema, TName>>> {
-    return (await this.readRows(tableName, options)) as Array<GtfsSchemaTableRow<TSchema, TName>>;
-  }
-
-  async readTable<TName extends GtfsJpV4TableName>(
-    tableName: TName,
-    options: TableReadOptions = {},
-  ): Promise<Array<GtfsJpV4TableRow<TName>>> {
-    if (this.#strictGtfsTableName && !isGtfsJpV4TableName(tableName)) {
-      throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
-    }
-
-    return (await this.readRows(tableName, options)) as Array<GtfsJpV4TableRow<TName>>;
-  }
-
-  async readSource<
-    TName extends GtfsJpV4TableName,
-    TColumns extends SourceReadColumns<TName> | undefined = undefined,
-  >(
-    tableName: TName,
-    options: {
-      limit?: number;
-      orderBy?: string | readonly string[];
-      columns?: TColumns;
-    } = {},
-  ): Promise<Array<SourceReadRow<TName, TColumns>>> {
-    if (!isGtfsJpV4TableName(tableName)) {
-      throw new Error(`Unknown GTFS-JP v4 table: ${tableName}`);
-    }
-
-    return (await readTypedGtfsSourceRows(this.#session, tableName, options)) as Array<
-      SourceReadRow<TName, TColumns>
-    >;
-  }
-
-  async readRows(tableName: string, options: TableReadOptions = {}): Promise<GtfsRow[]> {
-    return await readRowsFromSession(this.#session, tableName, options);
-  }
-
-  async loadTables(
-    options: LoadGtfsTablesOptions = {},
-  ): Promise<Partial<Record<GtfsJpV4TableName, GtfsRow[]>>> {
-    const targetTables = options.only ?? GTFS_JP_V4_TABLE_NAMES;
-    const existing = new Set(await this.listTables());
-    const output: Partial<Record<GtfsJpV4TableName, GtfsRow[]>> = {};
-
-    for (const table of targetTables) {
-      if (!existing.has(table)) {
-        if (options.skipMissing ?? true) {
-          continue;
-        }
-        throw new Error(`Table does not exist: ${table}`);
-      }
-
-      output[table] = await this.readTable(table, options);
-    }
-
-    return output;
   }
 
   async importZip(
@@ -266,12 +180,27 @@ class GtfsLoaderImpl<
     }
   }
 
-  async query<TRow extends GtfsRow = GtfsRow>(sql: string, bind: SqlBindMap = {}): Promise<TRow[]> {
-    return await this.#session.execRows<TRow>(sql, bind);
-  }
+  async validate(): Promise<GtfsValidationResult> {
+    const present = new Set(await this.listGtfsTables());
+    const presentTables = GTFS_JP_V4_TABLE_NAMES.filter((name) => present.has(name));
+    const missingRequired: GtfsJpV4TableName[] = [];
+    const missingConditionalRequired: GtfsJpV4TableName[] = [];
 
-  async exec(sql: string, bind: SqlBindMap = {}): Promise<void> {
-    await this.#session.exec(sql, bind);
+    for (const entry of GTFS_JP_V4_SCHEMA) {
+      if (present.has(entry.tableName)) continue;
+      if (entry.requirement === 'required') {
+        missingRequired.push(entry.tableName);
+      } else if (entry.requirement === 'conditional_required') {
+        missingConditionalRequired.push(entry.tableName);
+      }
+    }
+
+    return {
+      valid: missingRequired.length === 0,
+      missingRequired,
+      missingConditionalRequired,
+      presentTables,
+    };
   }
 }
 

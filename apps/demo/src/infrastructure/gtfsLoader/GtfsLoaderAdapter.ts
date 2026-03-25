@@ -1,12 +1,13 @@
 import {
   createGtfsLoader,
   type GtfsLoader,
-  type GtfsSchemaDefinition,
-  type ImportProgressEvent,
+  type GtfsValidationResult,
   type ImportGtfsZipResult,
+  type ImportProgressEvent,
   type SqliteStorageMode,
 } from '@gtfs-jp/loader';
-import type { GtfsRow } from '@gtfs-jp/types';
+import { type GtfsDatabase } from '@gtfs-jp/loader/kysely';
+import type { Kysely } from 'kysely';
 
 import type { GtfsLoaderPort } from './GtfsLoaderPort';
 import { createSampleSchema, sampleRuntime } from './schema';
@@ -17,7 +18,8 @@ type GtfsLoaderAdapterOptions = {
 };
 
 export class GtfsLoaderAdapter implements GtfsLoaderPort {
-  private loader: GtfsLoader<GtfsSchemaDefinition> | undefined;
+  private loader: GtfsLoader | undefined;
+  private kyselyDb: Kysely<GtfsDatabase> | undefined;
   private desiredDerivedTablesEnabled = true;
   private currentDerivedTablesEnabled = true;
 
@@ -40,6 +42,7 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
 
     await this.loader.close();
     this.loader = undefined;
+    this.kyselyDb = undefined;
   }
 
   async clearDatabase(): Promise<void> {
@@ -65,12 +68,18 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
     return await loader.importZip(file, { onProgress });
   }
 
-  async readRows(tableName: string, limit: number): Promise<GtfsRow[]> {
+  async validate(): Promise<GtfsValidationResult> {
     const loader = this.requireLoader();
-    return await loader.readRows(tableName, { limit });
+    return await loader.validate();
   }
 
-  private requireLoader(): GtfsLoader<GtfsSchemaDefinition> {
+  getKyselyDb(): Kysely<GtfsDatabase> {
+    const loader = this.requireLoader();
+    this.kyselyDb ??= loader.db();
+    return this.kyselyDb;
+  }
+
+  private requireLoader(): GtfsLoader {
     if (!this.loader) {
       throw new Error('Loader is not open');
     }
@@ -94,6 +103,7 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
 
     await this.loader.close();
     this.loader = this.createLoader(this.desiredDerivedTablesEnabled);
+    this.kyselyDb = undefined;
     this.currentDerivedTablesEnabled = this.desiredDerivedTablesEnabled;
     await this.loader.open();
   }
