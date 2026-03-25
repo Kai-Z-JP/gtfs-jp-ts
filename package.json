@@ -2,7 +2,7 @@
   "name": "gtfs-jp-ts",
   "private": true,
   "type": "module",
-  "version": "4.0.0-beta.8",
+  "version": "4.0.0-beta.9",
   "packageManager": "pnpm@8.15.9",
   "scripts": {
     "sync-versions": "node scripts/sync-versions.mjs",
