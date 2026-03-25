@@ -6,13 +6,18 @@
   "packageManager": "pnpm@8.15.9",
   "scripts": {
     "sync-versions": "node scripts/sync-versions.mjs",
+    "prepare": "husky",
     "build": "pnpm -r --filter \"@gtfs-jp/*\" build",
     "typecheck": "pnpm -r --filter \"@gtfs-jp/*\" typecheck",
     "test": "pnpm --filter \"@gtfs-jp/types\" test && pnpm --filter \"@gtfs-jp/loader\" test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint-staged": "lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,tsx,json,md,yml,yaml,css,html}": "prettier --write"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -21,6 +26,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "^5.6.3",

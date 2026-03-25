@@ -85,6 +85,10 @@ pnpm build
 pnpm test
 ```
 
+`pnpm install` 後は Husky の `pre-commit` hook が有効になり、staged な `js` / `ts` / `tsx` / `json` / `md` / `yml` / `yaml` / `css` / `html` ファイルに `Prettier` が自動実行されます。
+
+GitHub Actions では `main` 向けの `push` / `pull_request` ごとに `pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test` を実行します。
+
 ## License
 
 [MIT](./LICENSE)
