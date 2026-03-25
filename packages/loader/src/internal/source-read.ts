@@ -106,7 +106,7 @@ export const readTypedGtfsSourceRows = async <
   let query: any = db.selectFrom(tableName);
 
   if (options.columns && options.columns.length > 0) {
-    query = query.select(options.columns as string[]);
+    query = query.select(options.columns);
   } else {
     query = query.selectAll();
   }

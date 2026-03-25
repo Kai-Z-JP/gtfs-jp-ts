@@ -6,20 +6,24 @@ import {
   type ImportProgressEvent,
   type SqliteStorageMode,
 } from '@gtfs-jp/loader';
-import { type GtfsDatabase } from '@gtfs-jp/loader/kysely';
 import type { Kysely } from 'kysely';
 
 import type { GtfsLoaderPort } from './GtfsLoaderPort';
-import { createSampleSchema, sampleRuntime } from './schema';
+import {
+  createSampleSchema,
+  sampleRuntime,
+  schemaWithDerivedTables,
+  type SampleDatabase,
+} from './schema';
 
 type GtfsLoaderAdapterOptions = {
   storage: SqliteStorageMode;
   filename: string;
 };
 
-export class GtfsLoaderAdapter implements GtfsLoaderPort {
-  private loader: GtfsLoader | undefined;
-  private kyselyDb: Kysely<GtfsDatabase> | undefined;
+export class GtfsLoaderAdapter implements GtfsLoaderPort<SampleDatabase> {
+  private loader: GtfsLoader<typeof schemaWithDerivedTables> | undefined;
+  private kyselyDb: Kysely<SampleDatabase> | undefined;
   private desiredDerivedTablesEnabled = true;
   private currentDerivedTablesEnabled = true;
 
@@ -73,13 +77,13 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
     return await loader.validate();
   }
 
-  getKyselyDb(): Kysely<GtfsDatabase> {
+  getKyselyDb(): Kysely<SampleDatabase> {
     const loader = this.requireLoader();
     this.kyselyDb ??= loader.db();
     return this.kyselyDb;
   }
 
-  private requireLoader(): GtfsLoader {
+  private requireLoader(): GtfsLoader<typeof schemaWithDerivedTables> {
     if (!this.loader) {
       throw new Error('Loader is not open');
     }
@@ -87,13 +91,13 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort {
     return this.loader;
   }
 
-  private createLoader(includeDerivedTables: boolean) {
+  private createLoader(includeDerivedTables: boolean): GtfsLoader<typeof schemaWithDerivedTables> {
     return createGtfsLoader({
       storage: this.options.storage,
       filename: this.options.filename,
       schema: createSampleSchema(includeDerivedTables),
       runtime: sampleRuntime,
-    });
+    }) as GtfsLoader<typeof schemaWithDerivedTables>;
   }
 
   private async recreateLoaderIfNeeded(): Promise<void> {

@@ -51,7 +51,7 @@ type OptionalColumnNames<TColumns extends Record<string, GtfsJpV4ColumnSchema>> 
   RequiredColumnNames<TColumns>
 >;
 
-export type RowFromColumns<TColumns extends Record<string, GtfsJpV4ColumnSchema>> = GtfsRow & {
+export type RowFromColumns<TColumns extends Record<string, GtfsJpV4ColumnSchema>> = {
   [K in RequiredColumnNames<TColumns>]: ValueFromColumn<TColumns[K]>;
 } & {
   [K in OptionalColumnNames<TColumns>]?: ValueFromColumn<TColumns[K]>;

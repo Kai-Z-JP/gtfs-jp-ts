@@ -25,7 +25,7 @@ import {
 import { createSessionDb } from './internal/session-db.js';
 import { SqliteSession } from './internal/session.js';
 import { getOpfsUnavailableReason } from './internal/storage.js';
-import { GtfsDatabase } from './kysely.js';
+import { KyselyDatabaseFromLoader } from './kysely.js';
 
 class GtfsLoaderImpl<
   TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition,
@@ -35,7 +35,7 @@ class GtfsLoaderImpl<
   #session: SqliteSession;
   #compiledSchema = compileGtfsSchema(undefined);
   #runtime: GtfsSchemaRuntime<TSchema>;
-  #db: Kysely<GtfsDatabase> | undefined;
+  #db: Kysely<KyselyDatabaseFromLoader<TSchema>> | undefined;
 
   constructor(options: GtfsLoaderOptions<TSchema> = {}) {
     this.#mode = options.storage ?? 'memory';
@@ -53,8 +53,8 @@ class GtfsLoaderImpl<
     return this.#mode;
   }
 
-  db(): Kysely<GtfsDatabase> {
-    this.#db ??= createSessionDb(this.#session);
+  db(): Kysely<KyselyDatabaseFromLoader<TSchema>> {
+    this.#db ??= createSessionDb<KyselyDatabaseFromLoader<TSchema>>(this.#session);
     return this.#db;
   }
 

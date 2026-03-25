@@ -4,6 +4,7 @@ import {
   type DerivedTableRow,
   type SourceReadRow,
 } from '@gtfs-jp/loader';
+import type { KyselyDatabaseFromLoader } from '@gtfs-jp/loader/kysely';
 
 type SampleRuntime = {
   timezone: string;
@@ -231,10 +232,12 @@ const getTodayServices = (
   return [...services].sort();
 };
 
+export type SampleDatabase = KyselyDatabaseFromLoader<typeof schemaWithDerivedTables>;
+
 export const createSampleSchema = (includeDerivedTables: boolean) =>
   includeDerivedTables ? schemaWithDerivedTables : schemaWithoutDerivedTables;
 
-const schemaWithDerivedTables = defineGtfsSchema<
+export const schemaWithDerivedTables = defineGtfsSchema<
   SampleRuntime,
   readonly [typeof universalCalendar]
 >({

@@ -18,6 +18,7 @@ import {
   GtfsLoaderAdapter,
   type GtfsLoaderPort,
 } from '../../infrastructure/gtfsLoader';
+import type { SampleDatabase } from '../../infrastructure/gtfsLoader/schema';
 
 export type WorkbenchState = {
   storage: SqliteStorageMode;
@@ -197,13 +198,13 @@ const handleError = (
 export function useGtfsWorkbench(): {
   state: WorkbenchState;
   actions: WorkbenchActions;
-  loader: GtfsLoaderPort | null;
+  loader: GtfsLoaderPort<SampleDatabase> | null;
 } {
   const opfsSupport = useMemo(() => detectOpfsSupport(), []);
   const [state, dispatch] = useReducer(workbenchReducer, opfsSupport, createInitialWorkbenchState);
 
-  const loaderRef = useRef<GtfsLoaderPort | undefined>(undefined);
-  const [loader, setLoader] = useState<GtfsLoaderPort | null>(null);
+  const loaderRef = useRef<GtfsLoaderPort<SampleDatabase> | undefined>(undefined);
+  const [loader, setLoader] = useState<GtfsLoaderPort<SampleDatabase> | null>(null);
 
   const setStatusMessage = useCallback((message: string, type: StatusType) => {
     dispatch({ type: 'set-status', status: { message, type } });

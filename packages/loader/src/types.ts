@@ -2,7 +2,7 @@ import type { GtfsJpV4TableName } from '@gtfs-jp/types';
 import type { Kysely } from 'kysely';
 
 import type { GtfsSchemaDefinition, GtfsSchemaRuntime } from './schema-types.js';
-import { GtfsDatabase } from './kysely.js';
+import { KyselyDatabaseFromLoader } from './kysely.js';
 
 export type { SqlBindMap, SqlBindValue } from './sql-types.js';
 
@@ -21,7 +21,6 @@ export interface CloseOptions {
   unlink?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> {
   readonly mode: SqliteStorageMode;
   open(): Promise<void>;
@@ -35,7 +34,7 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
     options?: ImportGtfsZipOptions,
   ): Promise<ImportGtfsZipResult>;
   validate(): Promise<GtfsValidationResult>;
-  db(): Kysely<GtfsDatabase>;
+  db(): Kysely<KyselyDatabaseFromLoader<TSchema>>;
 }
 
 export interface GtfsValidationResult {

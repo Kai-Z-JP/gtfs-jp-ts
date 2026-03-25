@@ -10,7 +10,7 @@ import type { Kysely } from 'kysely';
 
 export type { GtfsValidationResult, SourceReadColumns, SourceReadRow, GtfsDatabase };
 
-export interface GtfsLoaderPort {
+export interface GtfsLoaderPort<TDB extends GtfsDatabase = GtfsDatabase> {
   open(): Promise<void>;
 
   close(): Promise<void>;
@@ -28,5 +28,5 @@ export interface GtfsLoaderPort {
 
   validate(): Promise<GtfsValidationResult>;
 
-  getKyselyDb(): Kysely<GtfsDatabase>;
+  getKyselyDb(): Kysely<TDB>;
 }
