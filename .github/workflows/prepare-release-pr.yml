@@ -1,0 +1,198 @@
+name: Prepare Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to prepare
+        required: true
+        type: choice
+        options:
+          - beta
+          - stable
+      bump:
+        description: Version bump strategy
+        required: true
+        type: choice
+        options:
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
+          - patch
+          - minor
+          - major
+          - promote
+      source_ref:
+        description: Source branch or commit for stable releases
+        required: false
+        type: string
+        default: develop
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_PR_TOKEN != '' && secrets.RELEASE_PR_TOKEN || github.token }}
+
+    steps:
+      - name: Resolve branch strategy
+        id: strategy
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+
+          case "$CHANNEL" in
+            beta)
+              echo "checkout_ref=develop" >> "$GITHUB_OUTPUT"
+              echo "base_branch=beta" >> "$GITHUB_OUTPUT"
+              echo "branch_prefix=release/beta" >> "$GITHUB_OUTPUT"
+              ;;
+            stable)
+              CHECKOUT_REF="${SOURCE_REF:-develop}"
+              echo "checkout_ref=$CHECKOUT_REF" >> "$GITHUB_OUTPUT"
+              echo "base_branch=main" >> "$GITHUB_OUTPUT"
+              echo "branch_prefix=release/stable" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported channel: $CHANNEL"
+              exit 1
+              ;;
+          esac
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.strategy.outputs.checkout_ref }}
+          token: ${{ env.RELEASE_TOKEN }}
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Fetch release branches
+        run: git fetch origin "+refs/heads/*:refs/remotes/origin/*" --tags
+
+      - name: Verify release branches
+        env:
+          BASE_BRANCH: ${{ steps.strategy.outputs.base_branch }}
+        run: |
+          set -euo pipefail
+          git rev-parse --verify "origin/$BASE_BRANCH^{commit}" >/dev/null
+
+      - name: Bump version
+        id: version
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          BUMP: ${{ inputs.bump }}
+          BRANCH_PREFIX: ${{ steps.strategy.outputs.branch_prefix }}
+        run: |
+          set -euo pipefail
+          NEXT_VERSION=$(node scripts/bump-version.mjs "$CHANNEL" "$BUMP")
+          node scripts/sync-versions.mjs
+          echo "version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH_PREFIX/$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build PR body
+        id: pr
+        env:
+          BASE_BRANCH: ${{ steps.strategy.outputs.base_branch }}
+          CHECKOUT_REF: ${{ steps.strategy.outputs.checkout_ref }}
+          RELEASE_BRANCH: ${{ steps.version.outputs.branch }}
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          COMPARE_URL="https://github.com/${{ github.repository }}/compare/$BASE_BRANCH...$RELEASE_BRANCH"
+          COMMITS=$(git log --reverse --pretty='- %h %s' "origin/$BASE_BRANCH..HEAD")
+
+          {
+            echo "body<<EOF"
+            echo "Prepare a \`$CHANNEL\` release."
+            echo
+            echo "- Channel: \`$CHANNEL\`"
+            echo "- Bump: \`$BUMP\`"
+            echo "- Source ref: \`$CHECKOUT_REF\`"
+            echo "- Base branch: \`$BASE_BRANCH\`"
+            echo "- Version: \`$VERSION\`"
+            echo "- Compare: $COMPARE_URL"
+            echo
+            echo "Commits included:"
+            if [ -n "$COMMITS" ]; then
+              echo "$COMMITS"
+            else
+              echo "- Version bump only"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push release branch
+        env:
+          RELEASE_BRANCH: ${{ steps.version.outputs.branch }}
+          COMMIT_MESSAGE: 'chore: bump versions to ${{ steps.version.outputs.version }}'
+        run: |
+          set -euo pipefail
+          git switch -C "$RELEASE_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json packages/*/package.json
+          git commit -m "$COMMIT_MESSAGE"
+          git push --force-with-lease origin "$RELEASE_BRANCH"
+
+      - name: Create or update Pull Request
+        uses: actions/github-script@v7
+        env:
+          BASE_BRANCH: ${{ steps.strategy.outputs.base_branch }}
+          RELEASE_BRANCH: ${{ steps.version.outputs.branch }}
+          PR_TITLE: 'chore: bump versions to ${{ steps.version.outputs.version }}'
+          PR_BODY: ${{ steps.pr.outputs.body }}
+        with:
+          github-token: ${{ env.RELEASE_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = `${owner}:${process.env.RELEASE_BRANCH}`;
+            const base = process.env.BASE_BRANCH;
+            const title = process.env.PR_TITLE;
+            const body = process.env.PR_BODY;
+
+            const { data: pulls } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "open",
+              head,
+              base,
+              per_page: 1,
+            });
+
+            if (pulls.length > 0) {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pulls[0].number,
+                title,
+                body,
+                base,
+              });
+              core.info(`Updated pull request #${pulls[0].number}`);
+              return;
+            }
+
+            const { data: pull } = await github.rest.pulls.create({
+              owner,
+              repo,
+              head: process.env.RELEASE_BRANCH,
+              base,
+              title,
+              body,
+              maintainer_can_modify: true,
+            });
+
+            core.info(`Created pull request #${pull.number}`);

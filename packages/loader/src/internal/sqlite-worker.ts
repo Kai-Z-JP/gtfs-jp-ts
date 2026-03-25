@@ -1,5 +1,7 @@
 import * as sqliteWasmModule from '@sqlite.org/sqlite-wasm';
 
+import { getErrorMessage, toError } from './error.js';
+
 export type SqliteWorkerResponse<T = unknown> = {
   dbId?: string | number;
   result?: T;
@@ -37,9 +39,6 @@ const isLikelySqliteAssetIssue = (message: string): boolean => {
   );
 };
 
-const toError = (error: unknown): Error =>
-  error instanceof Error ? error : new Error(String(error));
-
 const withSqliteAssetGuidance = (error: unknown): Error => {
   const normalizedError = toError(error);
 
@@ -70,13 +69,7 @@ export const createPromiser = async (worker?: Worker): Promise<SqlitePromiser> =
         worker,
         onready: () => resolve(promiserFactory),
         onerror: (...args) => {
-          reject(
-            new Error(
-              args
-                .map((value) => (value instanceof Error ? value.message : String(value)))
-                .join(' '),
-            ),
-          );
+          reject(new Error(args.map((value) => getErrorMessage(value)).join(' ')));
         },
       }) as unknown as SqlitePromiser;
     });

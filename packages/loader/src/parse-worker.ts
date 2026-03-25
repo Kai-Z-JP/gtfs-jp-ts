@@ -5,41 +5,21 @@ import type {
   ParseWorkerRequest,
   ParseWorkerResponse,
 } from './internal/import/protocol.js';
+import { getErrorMessage } from './internal/error.js';
 
-const SQL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+import { normalizeHeaderName } from './internal/import/header-normalization.js';
 const textDecoder = new TextDecoder('utf-8');
 
 const runtime = self as DedicatedWorkerGlobalScope;
 
-const normalizeHeaderName = (header: string, fileName: string, index: number): string => {
-  const cleaned = header.replace(/^\uFEFF/, '').trim();
-  if (!cleaned) {
-    throw new Error(`${fileName}: header[${index}] is empty`);
-  }
-
-  if (!SQL_IDENTIFIER_RE.test(cleaned)) {
-    throw new Error(`${fileName}: header[${index}] is not a valid SQL identifier: ${cleaned}`);
-  }
-
-  return cleaned;
-};
-
 const hasNonEmptyCell = (row: string[]): boolean =>
   row.some((value) => value !== undefined && value.trim() !== '');
-
-const toErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-};
 
 const postError = (requestId: number, error: unknown): void => {
   const response: ParseWorkerErrorResponse = {
     type: 'error',
     requestId,
-    error: toErrorMessage(error),
+    error: getErrorMessage(error),
   };
   runtime.postMessage(response);
 };
