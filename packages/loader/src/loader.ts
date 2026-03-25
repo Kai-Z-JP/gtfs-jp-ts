@@ -15,6 +15,7 @@ import type {
   ImportGtfsZipResult,
   SqliteStorageMode,
 } from './types.js';
+import { getErrorMessage } from './internal/error.js';
 import { importZipViaMemoryStage } from './internal/import/import-memory-stage.js';
 import { importZipIntoSession } from './internal/import/import-pipeline.js';
 import {
@@ -171,7 +172,7 @@ class GtfsLoaderImpl<
       });
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       emit({
         phase: 'error',
         message: `ZIP import failed: ${message}`,

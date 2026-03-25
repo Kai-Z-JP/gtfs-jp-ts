@@ -7,6 +7,7 @@ import type {
   SqliteStorageMode,
 } from '../../types.js';
 import { AsyncQueue } from '../async-queue.js';
+import { getErrorMessage } from '../error.js';
 import { withOpfsImportWriteTuning } from '../opfs-pragmas.js';
 import { SqliteSession } from '../session.js';
 import type { ImportMetrics, QueuedChunk } from './chunk.js';
@@ -132,7 +133,7 @@ export const importZipIntoSession = async ({
     }
 
     if (context?.fileName && context.tableName) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       emitSourceEvent(emit, context.tableName, 'error', `${context.fileName}: ${message}`);
     }
   };

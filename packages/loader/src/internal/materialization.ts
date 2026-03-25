@@ -20,6 +20,7 @@ import type {
   SqlBindMap,
   SqlBindValue,
 } from '../types.js';
+import { getErrorMessage } from './error.js';
 import { quoteIdentifier } from './sql.js';
 import { SqliteSession } from './session.js';
 import { readTypedGtfsSourceRows } from './source-read.js';
@@ -706,7 +707,7 @@ export const runDerivedMaterialization = async ({
     } catch (error) {
       await session.exec(`ROLLBACK TO SAVEPOINT ${savepointName};`);
       await session.exec(`RELEASE SAVEPOINT ${savepointName};`);
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
 
       if (table.onError === 'skip') {
         const metric: MaterializationTableMetric = {
