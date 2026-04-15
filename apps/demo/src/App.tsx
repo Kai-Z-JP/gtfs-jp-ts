@@ -59,13 +59,15 @@ export default function App(): JSX.Element {
             summary={state.summary}
             selectedTable={state.selectedTable}
             tableNames={state.tableNames}
-            limit={state.limit}
             rows={state.rows}
+            loadedRowCount={state.loadedRowCount}
+            tableQueryId={state.tableQuery?.id ?? null}
+            activeColumns={state.tableQuery?.columns}
             busy={state.busy}
             isOpen={state.isOpen}
             onSelectedTableChange={actions.setSelectedTable}
-            onLimitChange={actions.setLimit}
             onReadRows={actions.readRows}
+            onLoadRowsRange={actions.loadRowsRange}
             onGetTableColumns={actions.getTableColumns}
           />
         )}

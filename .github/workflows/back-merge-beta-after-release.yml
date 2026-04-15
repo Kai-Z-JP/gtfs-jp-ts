@@ -1,0 +1,125 @@
+name: Back-Merge Beta After Release
+
+on:
+  workflow_run:
+    workflows:
+      - Release
+    types:
+      - completed
+
+jobs:
+  back_merge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Verify release token
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TOKEN}" ]; then
+            echo "RELEASE_PR_TOKEN is required to back-merge beta into develop."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ env.RELEASE_TOKEN }}
+          persist-credentials: true
+
+      - name: Detect beta prerelease target
+        id: target
+        run: |
+          set -euo pipefail
+          git fetch origin "+refs/heads/*:refs/remotes/origin/*" --tags
+
+          if ! git branch -r --contains "$TARGET_SHA" | grep -q 'origin/beta$'; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git tag --points-at "$TARGET_SHA" 'v*' | grep -q -- '-'; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update back-merge PR
+        if: steps.target.outputs.enabled == 'true'
+        uses: actions/github-script@v7
+        id: pr
+        with:
+          github-token: ${{ env.RELEASE_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = `${owner}:beta`;
+            const base = "develop";
+            const title = "chore: back-merge beta into develop";
+            const body = [
+              "Created automatically after a successful beta release.",
+              "",
+              `- Release commit: \`${process.env.TARGET_SHA}\``,
+              "- Base branch protections and required checks control the merge.",
+            ].join("\n");
+
+            const { data: pulls } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "open",
+              head,
+              base,
+              per_page: 1,
+            });
+
+            let pull;
+
+            if (pulls.length > 0) {
+              pull = pulls[0];
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pull.number,
+                title,
+                body,
+                base,
+              });
+              core.info(`Updated back-merge PR #${pull.number}.`);
+            } else {
+              const created = await github.rest.pulls.create({
+                owner,
+                repo,
+                head: "beta",
+                base,
+                title,
+                body,
+                maintainer_can_modify: true,
+              });
+              pull = created.data;
+              core.info(`Created back-merge PR #${pull.number}.`);
+            }
+
+            try {
+              await github.graphql(
+                `
+                  mutation EnableAutoMerge($pullRequestId: ID!) {
+                    enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: MERGE }) {
+                      clientMutationId
+                    }
+                  }
+                `,
+                { pullRequestId: pull.node_id }
+              );
+              core.info(`Enabled auto-merge for PR #${pull.number}.`);
+            } catch (error) {
+              core.warning(`Could not enable auto-merge for PR #${pull.number}: ${error.message}`);
+            }
+
+            core.setOutput("pull_number", String(pull.number));
