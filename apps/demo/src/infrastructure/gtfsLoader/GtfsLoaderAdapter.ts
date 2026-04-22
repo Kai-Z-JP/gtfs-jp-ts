@@ -63,6 +63,11 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort<SampleDatabase> {
     return await loader.listTables();
   }
 
+  async hasTable(tableName: string): Promise<boolean> {
+    const loader = this.requireLoader();
+    return await loader.hasTable(tableName);
+  }
+
   async importGtfsZip(
     file: File,
     onProgress: (event: ImportProgressEvent) => void,

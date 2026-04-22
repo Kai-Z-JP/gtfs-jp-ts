@@ -2,9 +2,9 @@ import { useState } from 'react';
 
 import { Button } from './components/ui/button';
 import { useGtfsWorkbench } from './application/gtfsWorkbench';
-import { TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
+import { RouteMapPanel, TableViewerPanel, WorkflowPanel } from './presentation/gtfsWorkbench';
 
-type MainTab = 'workflow' | 'viewer';
+type MainTab = 'workflow' | 'viewer' | 'routeMap';
 
 export default function App(): JSX.Element {
   const [mainTab, setMainTab] = useState<MainTab>('workflow');
@@ -12,7 +12,7 @@ export default function App(): JSX.Element {
 
   return (
     <main className="min-h-screen bg-white text-black">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8 md:py-12">
+      <div className="mx-auto w-full px-4 py-8 md:px-8 md:py-12">
         <div className="mb-6 space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">GTFS-JP v4 demo</h1>
           <p className="max-w-3xl text-sm text-neutral-700 md:text-base">
@@ -32,6 +32,12 @@ export default function App(): JSX.Element {
             onClick={() => setMainTab('viewer')}
           >
             Table Viewer
+          </Button>
+          <Button
+            variant={mainTab === 'routeMap' ? 'default' : 'outline'}
+            onClick={() => setMainTab('routeMap')}
+          >
+            Route Map
           </Button>
         </div>
 
@@ -69,6 +75,15 @@ export default function App(): JSX.Element {
             onReadRows={actions.readRows}
             onLoadRowsRange={actions.loadRowsRange}
             onGetTableColumns={actions.getTableColumns}
+          />
+        )}
+        {mainTab === 'routeMap' && (
+          <RouteMapPanel
+            busy={state.busy}
+            isOpen={state.isOpen}
+            onLoadRouteMapOptions={actions.loadRouteMapOptions}
+            onLoadRouteMapData={actions.loadRouteMapData}
+            onLoadStopDetail={actions.loadStopDetail}
           />
         )}
       </div>

@@ -21,6 +21,8 @@ export interface GtfsLoaderPort<TDB extends GtfsDatabase = GtfsDatabase> {
 
   listAllTables(): Promise<string[]>;
 
+  hasTable(tableName: string): Promise<boolean>;
+
   importGtfsZip(
     file: File,
     onProgress: (event: ImportProgressEvent) => void,
