@@ -9,7 +9,7 @@
     "prepare": "husky",
     "build": "pnpm -r --filter \"@gtfs-jp/*\" build",
     "typecheck": "pnpm -r --filter \"@gtfs-jp/*\" typecheck",
-    "test": "pnpm --filter \"@gtfs-jp/types\" test && pnpm --filter \"@gtfs-jp/loader\" test",
+    "test": "pnpm --filter \"@gtfs-jp/types\" test && pnpm --filter \"@gtfs-jp/loader\" test && pnpm --filter \"@gtfs-jp/query\" test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

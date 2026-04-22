@@ -7,12 +7,16 @@ import {
   createInitialImportProgress,
   type ImportProgressState,
   type OpfsSupport,
-  parseLimit,
   reduceImportProgressState,
   type StatusMessage,
   type StatusType,
   type OrderCondition,
   type WhereCondition,
+  type LoadRouteMapDataOptions,
+  type LoadStopDetailOptions,
+  type RouteMapData,
+  type RouteMapOptions,
+  type RouteMapStopDetail,
 } from '../../domain/gtfsWorkbench';
 import {
   detectOpfsSupport,
@@ -20,6 +24,21 @@ import {
   type GtfsLoaderPort,
 } from '../../infrastructure/gtfsLoader';
 import type { SampleDatabase } from '../../infrastructure/gtfsLoader/schema';
+import {
+  loadRouteMapData as loadRouteMapDataFromLoader,
+  loadRouteMapOptions as loadRouteMapOptionsFromLoader,
+  loadStopDetail as loadStopDetailFromLoader,
+} from './routeMapData';
+
+const TABLE_VIEW_BATCH_SIZE = 500;
+
+type TableQueryState = {
+  id: number;
+  tableName: string;
+  columns?: string[];
+  whereConditions: WhereCondition[];
+  orderConditions: OrderCondition[];
+};
 
 export type WorkbenchState = {
   storage: SqliteStorageMode;
@@ -28,8 +47,9 @@ export type WorkbenchState = {
   summary: string;
   tableNames: string[];
   selectedTable: string;
-  rows: GtfsRow[];
-  limit: string;
+  rows: Array<GtfsRow | undefined>;
+  loadedRowCount: number;
+  tableQuery: TableQueryState | null;
   busy: boolean;
   importProgress: ImportProgressState;
   opfsSupport: OpfsSupport;
@@ -41,11 +61,17 @@ export type WorkbenchAction =
   | { type: 'set-storage'; storage: SqliteStorageMode }
   | { type: 'set-derived-tables-enabled'; enabled: boolean }
   | { type: 'set-selected-table'; selectedTable: string }
-  | { type: 'set-limit'; limit: string }
   | { type: 'set-busy'; busy: boolean }
   | { type: 'set-status'; status: StatusMessage }
   | { type: 'set-summary'; summary: string }
-  | { type: 'set-rows'; rows: GtfsRow[] }
+  | { type: 'reset-rows' }
+  | {
+      type: 'initialize-table-rows';
+      tableQuery: TableQueryState;
+      rowCount: number;
+      initialRows: GtfsRow[];
+    }
+  | { type: 'merge-table-rows'; startIndex: number; rows: GtfsRow[] }
   | { type: 'sync-tables'; tableNames: string[] }
   | { type: 'set-import-progress'; importProgress: ImportProgressState }
   | { type: 'apply-import-progress'; event: ImportProgressEvent }
@@ -57,7 +83,6 @@ export type WorkbenchActions = {
   setStorage: (storage: SqliteStorageMode) => void;
   setDerivedTablesEnabled: (enabled: boolean) => void;
   setSelectedTable: (selectedTable: string) => void;
-  setLimit: (limit: string) => void;
   openDb: () => Promise<void>;
   closeDb: () => Promise<void>;
   refreshTables: () => Promise<void>;
@@ -68,7 +93,11 @@ export type WorkbenchActions = {
     whereConditions?: WhereCondition[],
     orderConditions?: OrderCondition[],
   ) => Promise<void>;
+  loadRowsRange: (startIndex: number, endIndex: number) => void;
   getTableColumns: (tableName: string) => Promise<string[]>;
+  loadRouteMapOptions: () => Promise<RouteMapOptions>;
+  loadRouteMapData: (options: LoadRouteMapDataOptions) => Promise<RouteMapData>;
+  loadStopDetail: (options: LoadStopDetailOptions) => Promise<RouteMapStopDetail>;
 };
 
 const getNestedErrorMessage = (
@@ -149,7 +178,8 @@ const createInitialWorkbenchState = (opfsSupport: OpfsSupport): WorkbenchState =
   tableNames: [],
   selectedTable: '',
   rows: [],
-  limit: '50',
+  loadedRowCount: 0,
+  tableQuery: null,
   busy: false,
   importProgress: createInitialImportProgress(),
   opfsSupport,
@@ -174,11 +204,9 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
       return {
         ...state,
         selectedTable: action.selectedTable,
-      };
-    case 'set-limit':
-      return {
-        ...state,
-        limit: action.limit,
+        rows: [],
+        loadedRowCount: 0,
+        tableQuery: null,
       };
     case 'set-busy':
       return {
@@ -195,11 +223,51 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
         ...state,
         summary: action.summary,
       };
-    case 'set-rows':
+    case 'reset-rows':
       return {
         ...state,
-        rows: action.rows,
+        rows: [],
+        loadedRowCount: 0,
+        tableQuery: null,
       };
+    case 'initialize-table-rows': {
+      const rows = Array.from({ length: action.rowCount }, (): GtfsRow | undefined => undefined);
+      let loadedRowCount = 0;
+
+      for (let index = 0; index < action.initialRows.length; index += 1) {
+        rows[index] = action.initialRows[index];
+        loadedRowCount += 1;
+      }
+
+      return {
+        ...state,
+        rows,
+        loadedRowCount,
+        tableQuery: action.tableQuery,
+      };
+    }
+    case 'merge-table-rows': {
+      const rows = [...state.rows];
+      let loadedRowCount = state.loadedRowCount;
+
+      for (let index = 0; index < action.rows.length; index += 1) {
+        const targetIndex = action.startIndex + index;
+        if (targetIndex >= rows.length) {
+          break;
+        }
+
+        if (!rows[targetIndex]) {
+          loadedRowCount += 1;
+        }
+        rows[targetIndex] = action.rows[index];
+      }
+
+      return {
+        ...state,
+        rows,
+        loadedRowCount,
+      };
+    }
     case 'sync-tables': {
       if (action.tableNames.length === 0) {
         return {
@@ -207,16 +275,24 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
           tableNames: action.tableNames,
           selectedTable: '',
           rows: [],
+          loadedRowCount: 0,
+          tableQuery: null,
         };
       }
+
+      const selectedTable =
+        state.selectedTable && action.tableNames.includes(state.selectedTable)
+          ? state.selectedTable
+          : action.tableNames[0];
+      const tableChanged = selectedTable !== state.selectedTable;
 
       return {
         ...state,
         tableNames: action.tableNames,
-        selectedTable:
-          state.selectedTable && action.tableNames.includes(state.selectedTable)
-            ? state.selectedTable
-            : action.tableNames[0],
+        selectedTable,
+        rows: tableChanged ? [] : state.rows,
+        loadedRowCount: tableChanged ? 0 : state.loadedRowCount,
+        tableQuery: tableChanged ? null : state.tableQuery,
       };
     }
     case 'set-import-progress':
@@ -237,6 +313,8 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
         tableNames: [],
         selectedTable: '',
         rows: [],
+        loadedRowCount: 0,
+        tableQuery: null,
       };
     case 'connection-closed':
       return {
@@ -246,6 +324,8 @@ const workbenchReducer = (state: WorkbenchState, action: WorkbenchAction): Workb
         tableNames: [],
         selectedTable: '',
         rows: [],
+        loadedRowCount: 0,
+        tableQuery: null,
         fileInputResetToken: state.fileInputResetToken + 1,
       };
     case 'increment-file-input-reset-token':
@@ -267,6 +347,55 @@ const handleError = (
   setStatusMessage(`${prefix}: ${message}`, 'error');
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const applyWhereConditions = (query: any, whereConditions: WhereCondition[] = []): any => {
+  let nextQuery = query;
+
+  for (const cond of whereConditions) {
+    if (cond.operator === 'is' || cond.operator === 'is not') {
+      nextQuery = nextQuery.where(cond.column, cond.operator, null);
+    } else if (cond.operator === 'in' || cond.operator === 'not in') {
+      const values = cond.value
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+      nextQuery = nextQuery.where(cond.column, cond.operator, values);
+    } else {
+      nextQuery = nextQuery.where(cond.column, cond.operator, cond.value);
+    }
+  }
+
+  return nextQuery;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const applyOrderConditions = (query: any, orderConditions: OrderCondition[] = []): any => {
+  let nextQuery = query;
+
+  for (const ord of orderConditions) {
+    nextQuery = nextQuery.orderBy(ord.column, ord.direction);
+  }
+
+  return nextQuery;
+};
+
+const toRowCount = (value: unknown): number => {
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
 export function useGtfsWorkbench(): {
   state: WorkbenchState;
   actions: WorkbenchActions;
@@ -276,7 +405,15 @@ export function useGtfsWorkbench(): {
   const [state, dispatch] = useReducer(workbenchReducer, opfsSupport, createInitialWorkbenchState);
 
   const loaderRef = useRef<GtfsLoaderPort<SampleDatabase> | undefined>(undefined);
+  const tableQueryIdRef = useRef(0);
+  const activeTableQueryRef = useRef<TableQueryState | null>(null);
+  const loadingBatchKeysRef = useRef<Set<string>>(new Set());
   const [loader, setLoader] = useState<GtfsLoaderPort<SampleDatabase> | null>(null);
+
+  const clearActiveTableQuery = useCallback(() => {
+    activeTableQueryRef.current = null;
+    loadingBatchKeysRef.current.clear();
+  }, []);
 
   const setStatusMessage = useCallback((message: string, type: StatusType) => {
     dispatch({ type: 'set-status', status: { message, type } });
@@ -302,6 +439,12 @@ export function useGtfsWorkbench(): {
       void closeCurrentLoader();
     };
   }, [closeCurrentLoader]);
+
+  useEffect(() => {
+    if (state.tableQuery) {
+      activeTableQueryRef.current = state.tableQuery;
+    }
+  }, [state.tableQuery]);
 
   const refreshTables = useCallback(async () => {
     if (!loaderRef.current) {
@@ -330,6 +473,7 @@ export function useGtfsWorkbench(): {
         return;
       }
 
+      clearActiveTableQuery();
       await closeCurrentLoader();
 
       const nextLoader = new GtfsLoaderAdapter({
@@ -353,6 +497,7 @@ export function useGtfsWorkbench(): {
     }
   }, [
     closeCurrentLoader,
+    clearActiveTableQuery,
     setStatusMessage,
     state.derivedTablesEnabled,
     state.opfsSupport.available,
@@ -363,13 +508,14 @@ export function useGtfsWorkbench(): {
   const closeDb = useCallback(async () => {
     dispatch({ type: 'set-busy', busy: true });
     try {
+      clearActiveTableQuery();
       await closeCurrentLoader();
       dispatch({ type: 'connection-closed' });
       setStatusMessage('DBをクローズしました', 'ok');
     } finally {
       dispatch({ type: 'set-busy', busy: false });
     }
-  }, [closeCurrentLoader, setStatusMessage]);
+  }, [clearActiveTableQuery, closeCurrentLoader, setStatusMessage]);
 
   const importZip = useCallback(
     async (file: File | undefined) => {
@@ -440,8 +586,10 @@ export function useGtfsWorkbench(): {
 
     dispatch({ type: 'set-busy', busy: true });
     try {
+      clearActiveTableQuery();
       await loaderRef.current.clearDatabase();
       await refreshTables();
+      dispatch({ type: 'reset-rows' });
       dispatch({ type: 'increment-file-input-reset-token' });
       setStatusMessage('DBを削除して再作成しました', 'ok');
     } catch (error) {
@@ -449,7 +597,7 @@ export function useGtfsWorkbench(): {
     } finally {
       dispatch({ type: 'set-busy', busy: false });
     }
-  }, [refreshTables, setStatusMessage]);
+  }, [clearActiveTableQuery, refreshTables, setStatusMessage]);
 
   const getTableColumns = useCallback(async (tableName: string): Promise<string[]> => {
     if (!loaderRef.current || !tableName) return [];
@@ -457,6 +605,87 @@ export function useGtfsWorkbench(): {
     const columns = tables.find((t) => t.name === tableName)?.columns ?? [];
     return columns.map((c) => c.name);
   }, []);
+
+  const requireOpenLoader = useCallback(() => {
+    if (!loaderRef.current) {
+      throw new Error(
+        'DB未接続です。先に Load タブで Open DB と GTFS ZIP import を実行してください。',
+      );
+    }
+    const loader = loaderRef.current;
+    return {
+      db: loader.getKyselyDb(),
+      hasTable: (tableName: string) => loader.hasTable(tableName),
+    };
+  }, []);
+
+  const loadRouteMapOptions = useCallback(async (): Promise<RouteMapOptions> => {
+    return await loadRouteMapOptionsFromLoader(requireOpenLoader());
+  }, [requireOpenLoader]);
+
+  const loadRouteMapData = useCallback(
+    async (options: LoadRouteMapDataOptions): Promise<RouteMapData> => {
+      return await loadRouteMapDataFromLoader(requireOpenLoader(), options);
+    },
+    [requireOpenLoader],
+  );
+
+  const loadStopDetail = useCallback(
+    async (options: LoadStopDetailOptions): Promise<RouteMapStopDetail> => {
+      return await loadStopDetailFromLoader(requireOpenLoader(), options);
+    },
+    [requireOpenLoader],
+  );
+
+  const fetchRowCount = useCallback(async (tableQuery: TableQueryState): Promise<number> => {
+    if (!loaderRef.current) {
+      return 0;
+    }
+
+    const db = loaderRef.current.getKyselyDb();
+
+    const baseQuery = db
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .selectFrom(tableQuery.tableName as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select((eb: any) => eb.fn.countAll().as('count'));
+    const countRow = (await applyWhereConditions(
+      baseQuery,
+      tableQuery.whereConditions,
+    ).executeTakeFirst()) as
+      | {
+          count?: unknown;
+        }
+      | undefined;
+
+    return toRowCount(countRow?.count);
+  }, []);
+
+  const fetchRowsBatch = useCallback(
+    async (tableQuery: TableQueryState, startIndex: number, limit: number): Promise<GtfsRow[]> => {
+      if (!loaderRef.current || limit <= 0) {
+        return [];
+      }
+
+      const db = loaderRef.current.getKyselyDb();
+      const selectedColumns = tableQuery.columns;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = db.selectFrom(tableQuery.tableName as any);
+
+      if (selectedColumns && selectedColumns.length > 0) {
+        query = query.select(selectedColumns);
+      } else {
+        query = query.selectAll();
+      }
+
+      query = applyWhereConditions(query, tableQuery.whereConditions);
+      query = applyOrderConditions(query, tableQuery.orderConditions);
+
+      return (await query.limit(limit).offset(startIndex).execute()) as GtfsRow[];
+    },
+    [],
+  );
 
   const readRows = useCallback(
     async (
@@ -473,75 +702,150 @@ export function useGtfsWorkbench(): {
         return;
       }
 
-      const parsedLimit = parseLimit(state.limit);
-      if (!parsedLimit.ok) {
-        setStatusMessage(parsedLimit.errorMessage, 'warn');
-        return;
-      }
+      const tableQuery: TableQueryState = {
+        id: (tableQueryIdRef.current += 1),
+        tableName: state.selectedTable,
+        columns: columns && columns.length > 0 ? [...columns] : undefined,
+        whereConditions: [...(whereConditions ?? [])],
+        orderConditions: [...(orderConditions ?? [])],
+      };
 
+      activeTableQueryRef.current = tableQuery;
+      loadingBatchKeysRef.current.clear();
       dispatch({ type: 'set-busy', busy: true });
+      dispatch({ type: 'reset-rows' });
       try {
-        const db = loaderRef.current.getKyselyDb();
-        const hasColumns = columns && columns.length > 0;
+        const rowCount = await fetchRowCount(tableQuery);
+        const initialRows = await fetchRowsBatch(
+          tableQuery,
+          0,
+          Math.min(TABLE_VIEW_BATCH_SIZE, rowCount),
+        );
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let q = db.selectFrom(state.selectedTable as any);
-
-        if (hasColumns) {
-          q = q.select(columns);
-        } else {
-          q = q.selectAll();
+        if (activeTableQueryRef.current?.id !== tableQuery.id) {
+          return;
         }
 
-        for (const cond of whereConditions ?? []) {
-          if (cond.operator === 'is' || cond.operator === 'is not') {
-            q = q.where(cond.column, cond.operator, null);
-          } else if (cond.operator === 'in' || cond.operator === 'not in') {
-            const values = cond.value
-              .split(',')
-              .map((v) => v.trim())
-              .filter(Boolean);
-            q = q.where(cond.column, cond.operator, values);
-          } else {
-            q = q.where(cond.column, cond.operator, cond.value);
-          }
-        }
-
-        for (const ord of orderConditions ?? []) {
-          q = q.orderBy(ord.column, ord.direction);
-        }
-
-        const loadedRows = (await q.limit(parsedLimit.value).execute()) as GtfsRow[];
-        dispatch({ type: 'set-rows', rows: loadedRows });
-        setStatusMessage(`${state.selectedTable}: ${loadedRows.length} row(s)`, 'ok');
+        dispatch({
+          type: 'initialize-table-rows',
+          tableQuery,
+          rowCount,
+          initialRows,
+        });
+        setStatusMessage(
+          `${tableQuery.tableName}: ${initialRows.length} / ${rowCount} row(s) loaded`,
+          'ok',
+        );
       } catch (error) {
         handleError(error, `${state.selectedTable} の読込に失敗しました`, setStatusMessage);
       } finally {
         dispatch({ type: 'set-busy', busy: false });
       }
     },
-    [setStatusMessage, state.limit, state.selectedTable],
+    [fetchRowCount, fetchRowsBatch, setStatusMessage, state.selectedTable],
+  );
+
+  const loadRowsRange = useCallback(
+    (startIndex: number, endIndex: number) => {
+      const tableQuery = state.tableQuery;
+      if (!loaderRef.current || !tableQuery || state.rows.length === 0) {
+        return;
+      }
+
+      const clampedStartIndex = Math.max(0, Math.min(startIndex, state.rows.length));
+      const clampedEndIndex = Math.max(clampedStartIndex, Math.min(endIndex, state.rows.length));
+      if (clampedStartIndex === clampedEndIndex) {
+        return;
+      }
+
+      const firstBatchStart =
+        Math.floor(clampedStartIndex / TABLE_VIEW_BATCH_SIZE) * TABLE_VIEW_BATCH_SIZE;
+      const lastBatchStart =
+        Math.floor((clampedEndIndex - 1) / TABLE_VIEW_BATCH_SIZE) * TABLE_VIEW_BATCH_SIZE;
+      const batchStarts: number[] = [];
+
+      for (
+        let batchStart = firstBatchStart;
+        batchStart <= lastBatchStart;
+        batchStart += TABLE_VIEW_BATCH_SIZE
+      ) {
+        const batchEnd = Math.min(batchStart + TABLE_VIEW_BATCH_SIZE, state.rows.length);
+        const hasMissingRows = state.rows
+          .slice(batchStart, batchEnd)
+          .some((row) => row === undefined);
+        const batchKey = `${tableQuery.id}:${batchStart}`;
+
+        if (hasMissingRows && !loadingBatchKeysRef.current.has(batchKey)) {
+          loadingBatchKeysRef.current.add(batchKey);
+          batchStarts.push(batchStart);
+        }
+      }
+
+      if (batchStarts.length === 0) {
+        return;
+      }
+
+      void Promise.all(
+        batchStarts.map(async (batchStart) => {
+          const batchKey = `${tableQuery.id}:${batchStart}`;
+
+          try {
+            const rows = await fetchRowsBatch(
+              tableQuery,
+              batchStart,
+              Math.min(TABLE_VIEW_BATCH_SIZE, state.rows.length - batchStart),
+            );
+
+            if (activeTableQueryRef.current?.id === tableQuery.id) {
+              dispatch({ type: 'merge-table-rows', startIndex: batchStart, rows });
+            }
+          } catch (error) {
+            if (activeTableQueryRef.current?.id === tableQuery.id) {
+              handleError(
+                error,
+                `${tableQuery.tableName} の追加読込に失敗しました`,
+                setStatusMessage,
+              );
+            }
+          } finally {
+            loadingBatchKeysRef.current.delete(batchKey);
+          }
+        }),
+      );
+    },
+    [fetchRowsBatch, setStatusMessage, state.rows, state.tableQuery],
   );
 
   const actions = useMemo<WorkbenchActions>(
     () => ({
       setStorage: (storage) => dispatch({ type: 'set-storage', storage }),
       setDerivedTablesEnabled,
-      setSelectedTable: (selectedTable) => dispatch({ type: 'set-selected-table', selectedTable }),
-      setLimit: (limit) => dispatch({ type: 'set-limit', limit }),
+      setSelectedTable: (selectedTable) => {
+        clearActiveTableQuery();
+        dispatch({ type: 'set-selected-table', selectedTable });
+      },
       openDb,
       closeDb,
       refreshTables,
       importZip,
       clearDb,
       readRows,
+      loadRowsRange,
       getTableColumns,
+      loadRouteMapOptions,
+      loadRouteMapData,
+      loadStopDetail,
     }),
     [
       clearDb,
+      clearActiveTableQuery,
       closeDb,
       getTableColumns,
       importZip,
+      loadRouteMapOptions,
+      loadRouteMapData,
+      loadRowsRange,
+      loadStopDetail,
       openDb,
       readRows,
       refreshTables,
