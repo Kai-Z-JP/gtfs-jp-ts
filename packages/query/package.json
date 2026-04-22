@@ -1,6 +1,6 @@
 {
   "name": "@gtfs-jp/query",
-  "version": "4.0.0-beta.10",
+  "version": "4.0.0-beta.11",
   "description": "Reusable read/query helpers for GTFS-JP data on top of @gtfs-jp/loader",
   "type": "module",
   "license": "MIT",
