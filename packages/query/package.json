@@ -1,0 +1,47 @@
+{
+  "name": "@gtfs-jp/query",
+  "version": "4.0.0-beta.11",
+  "description": "Reusable read/query helpers for GTFS-JP data on top of @gtfs-jp/loader",
+  "type": "module",
+  "license": "MIT",
+  "author": "Kai-Z-JP",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kai-Z-JP/gtfs-jp-ts.git",
+    "directory": "packages/query"
+  },
+  "homepage": "https://github.com/Kai-Z-JP/gtfs-jp-ts/tree/main/packages/query",
+  "keywords": [
+    "gtfs",
+    "gtfs-jp",
+    "query",
+    "transit",
+    "japan"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build:deps": "pnpm --filter @gtfs-jp/loader build",
+    "build": "pnpm build:deps && tsc -p tsconfig.json",
+    "typecheck": "pnpm build:deps && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "pnpm build:deps && vitest run"
+  },
+  "dependencies": {
+    "@gtfs-jp/loader": "workspace:*"
+  },
+  "peerDependencies": {
+    "kysely": "^0.28.14"
+  }
+}

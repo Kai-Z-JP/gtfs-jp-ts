@@ -12,6 +12,11 @@ import {
   type StatusType,
   type OrderCondition,
   type WhereCondition,
+  type LoadRouteMapDataOptions,
+  type LoadStopDetailOptions,
+  type RouteMapData,
+  type RouteMapOptions,
+  type RouteMapStopDetail,
 } from '../../domain/gtfsWorkbench';
 import {
   detectOpfsSupport,
@@ -19,6 +24,11 @@ import {
   type GtfsLoaderPort,
 } from '../../infrastructure/gtfsLoader';
 import type { SampleDatabase } from '../../infrastructure/gtfsLoader/schema';
+import {
+  loadRouteMapData as loadRouteMapDataFromLoader,
+  loadRouteMapOptions as loadRouteMapOptionsFromLoader,
+  loadStopDetail as loadStopDetailFromLoader,
+} from './routeMapData';
 
 const TABLE_VIEW_BATCH_SIZE = 500;
 
@@ -85,6 +95,9 @@ export type WorkbenchActions = {
   ) => Promise<void>;
   loadRowsRange: (startIndex: number, endIndex: number) => void;
   getTableColumns: (tableName: string) => Promise<string[]>;
+  loadRouteMapOptions: () => Promise<RouteMapOptions>;
+  loadRouteMapData: (options: LoadRouteMapDataOptions) => Promise<RouteMapData>;
+  loadStopDetail: (options: LoadStopDetailOptions) => Promise<RouteMapStopDetail>;
 };
 
 const getNestedErrorMessage = (
@@ -593,6 +606,37 @@ export function useGtfsWorkbench(): {
     return columns.map((c) => c.name);
   }, []);
 
+  const requireOpenLoader = useCallback(() => {
+    if (!loaderRef.current) {
+      throw new Error(
+        'DB未接続です。先に Load タブで Open DB と GTFS ZIP import を実行してください。',
+      );
+    }
+    const loader = loaderRef.current;
+    return {
+      db: loader.getKyselyDb(),
+      hasTable: (tableName: string) => loader.hasTable(tableName),
+    };
+  }, []);
+
+  const loadRouteMapOptions = useCallback(async (): Promise<RouteMapOptions> => {
+    return await loadRouteMapOptionsFromLoader(requireOpenLoader());
+  }, [requireOpenLoader]);
+
+  const loadRouteMapData = useCallback(
+    async (options: LoadRouteMapDataOptions): Promise<RouteMapData> => {
+      return await loadRouteMapDataFromLoader(requireOpenLoader(), options);
+    },
+    [requireOpenLoader],
+  );
+
+  const loadStopDetail = useCallback(
+    async (options: LoadStopDetailOptions): Promise<RouteMapStopDetail> => {
+      return await loadStopDetailFromLoader(requireOpenLoader(), options);
+    },
+    [requireOpenLoader],
+  );
+
   const fetchRowCount = useCallback(async (tableQuery: TableQueryState): Promise<number> => {
     if (!loaderRef.current) {
       return 0;
@@ -788,6 +832,9 @@ export function useGtfsWorkbench(): {
       readRows,
       loadRowsRange,
       getTableColumns,
+      loadRouteMapOptions,
+      loadRouteMapData,
+      loadStopDetail,
     }),
     [
       clearDb,
@@ -795,7 +842,10 @@ export function useGtfsWorkbench(): {
       closeDb,
       getTableColumns,
       importZip,
+      loadRouteMapOptions,
+      loadRouteMapData,
       loadRowsRange,
+      loadStopDetail,
       openDb,
       readRows,
       refreshTables,
