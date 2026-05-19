@@ -61,6 +61,12 @@ jobs:
       - name: Publish @gtfs-jp/loader
         run: pnpm --filter @gtfs-jp/loader publish --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
 
+      - name: Wait for npm propagation
+        run: sleep 10
+
+      - name: Publish @gtfs-jp/query
+        run: pnpm --filter @gtfs-jp/query publish --no-git-checks --tag ${{ steps.npm_tag.outputs.tag }} --provenance
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
