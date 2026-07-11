@@ -19,7 +19,7 @@ pnpm add @gtfs-jp/query kysely
 import type { GtfsQuerySource } from '@gtfs-jp/query';
 
 const source: GtfsQuerySource = {
-  db, // Kysely<GtfsDatabase>
+  db,
   hasTable: (name) => checkTableExists(name),
 };
 ```
@@ -102,7 +102,7 @@ type StopTimetableGroup = {
 
 ```ts
 // クエリのデータソース
-type GtfsQuerySource<TDB extends GtfsDatabase = GtfsDatabase> = {
+type GtfsQuerySource<TDB extends GtfsDatabase = KyselyDatabaseFromLoader<GtfsSchemaDefinition>> = {
   db: Kysely<TDB>;
   hasTable: (tableName: string) => Promise<boolean>;
 };

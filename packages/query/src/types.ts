@@ -1,6 +1,9 @@
-import type { GtfsDatabase, Kysely } from '@gtfs-jp/loader/kysely';
+import type { GtfsSchemaDefinition } from '@gtfs-jp/loader';
+import type { GtfsDatabase, Kysely, KyselyDatabaseFromLoader } from '@gtfs-jp/loader/kysely';
 
-export type GtfsQuerySource<TDB extends GtfsDatabase = GtfsDatabase> = {
+export type GtfsQuerySource<
+  TDB extends GtfsDatabase = KyselyDatabaseFromLoader<GtfsSchemaDefinition>,
+> = {
   db: Kysely<TDB>;
   hasTable: (tableName: string) => Promise<boolean>;
 };
