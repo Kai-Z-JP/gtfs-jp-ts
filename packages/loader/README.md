@@ -59,6 +59,34 @@ createGtfsLoader({ storage: 'memory' });
 createGtfsLoader({ storage: 'opfs', filename: 'gtfs.sqlite3' });
 ```
 
+## Custom Database Provider
+
+独自の SQLite/Kysely provider を使う場合は `database` を渡せます。
+
+```ts
+import { createGtfsLoader, type GtfsDatabaseProvider } from '@gtfs-jp/loader';
+
+const database: GtfsDatabaseProvider = {
+  async open() {},
+  async close(_options) {},
+  async reset() {},
+  db() {
+    return customKyselyDb;
+  },
+  async exportBytes() {
+    return await exportSqliteBytes();
+  },
+  async importBytes(bytes) {
+    await importSqliteBytes(bytes);
+  },
+};
+
+const loader = createGtfsLoader({
+  database,
+  schema,
+});
+```
+
 OPFS を使用するには、ページに以下のヘッダーが必要です:
 
 ```
@@ -186,6 +214,7 @@ JS builder の `context` には以下のメソッドがあります:
 
 | オプション            | 型                     | デフォルト | 説明                                    |
 | --------------------- | ---------------------- | ---------- | --------------------------------------- |
+| `database`            | `GtfsDatabaseProvider` | —          | カスタム DB provider                    |
 | `storage`             | `"memory" \| "opfs"`   | `"memory"` | ストレージモード                        |
 | `filename`            | `string`               | —          | OPFS ファイル名                         |
 | `worker`              | `Worker`               | —          | カスタム Worker インスタンス            |

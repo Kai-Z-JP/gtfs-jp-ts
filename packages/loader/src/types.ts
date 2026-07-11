@@ -8,7 +8,17 @@ export type { SqlBindMap, SqlBindValue } from './sql-types.js';
 
 export type SqliteStorageMode = 'memory' | 'opfs';
 
+export interface GtfsDatabaseProvider<TDB = KyselyDatabaseFromLoader<GtfsSchemaDefinition>> {
+  open(): Promise<void>;
+  close(options?: CloseOptions): Promise<void>;
+  reset(): Promise<void>;
+  db(): Kysely<TDB>;
+  exportBytes(): Promise<Uint8Array>;
+  importBytes(bytes: Uint8Array): Promise<void>;
+}
+
 export interface GtfsLoaderOptions<TSchema extends GtfsSchemaDefinition = GtfsSchemaDefinition> {
+  database?: GtfsDatabaseProvider<KyselyDatabaseFromLoader<TSchema>>;
   storage?: SqliteStorageMode;
   filename?: string;
   worker?: Worker;
