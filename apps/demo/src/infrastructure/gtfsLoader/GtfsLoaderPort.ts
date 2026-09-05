@@ -17,6 +17,8 @@ export interface GtfsLoaderPort<TDB extends GtfsDatabase = GtfsDatabase> {
 
   clearDatabase(): Promise<void>;
 
+  exportDatabase(): Promise<Uint8Array>;
+
   setDerivedTablesEnabled(enabled: boolean): void;
 
   listAllTables(): Promise<string[]>;

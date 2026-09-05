@@ -62,5 +62,8 @@ describe('custom database provider', () => {
 
     await loader.reset();
     expect(provider.reset).toHaveBeenCalledTimes(1);
+
+    await expect(loader.exportBytes()).resolves.toEqual(new Uint8Array([1, 2, 3]));
+    expect(provider.exportBytes).toHaveBeenCalledTimes(1);
   });
 });

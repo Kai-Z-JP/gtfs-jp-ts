@@ -31,6 +31,12 @@ import {
 } from './routeMapData';
 
 const TABLE_VIEW_BATCH_SIZE = 500;
+const DEFAULT_DATABASE_DOWNLOAD_FILENAME = 'gtfs-jp-v4.sqlite3';
+
+const toDatabaseDownloadFilename = (zipFilename: string): string => {
+  const basename = zipFilename.replace(/\.zip$/i, '');
+  return `${basename || 'gtfs-jp-v4'}.sqlite3`;
+};
 
 type TableQueryState = {
   id: number;
@@ -87,6 +93,7 @@ export type WorkbenchActions = {
   closeDb: () => Promise<void>;
   refreshTables: () => Promise<void>;
   importZip: (file: File | undefined) => Promise<void>;
+  downloadDatabase: () => Promise<void>;
   clearDb: () => Promise<void>;
   readRows: (
     columns?: string[],
@@ -405,6 +412,7 @@ export function useGtfsWorkbench(): {
   const [state, dispatch] = useReducer(workbenchReducer, opfsSupport, createInitialWorkbenchState);
 
   const loaderRef = useRef<GtfsLoaderPort<SampleDatabase> | undefined>(undefined);
+  const databaseDownloadFilenameRef = useRef(DEFAULT_DATABASE_DOWNLOAD_FILENAME);
   const tableQueryIdRef = useRef(0);
   const activeTableQueryRef = useRef<TableQueryState | null>(null);
   const loadingBatchKeysRef = useRef<Set<string>>(new Set());
@@ -483,6 +491,7 @@ export function useGtfsWorkbench(): {
       nextLoader.setDerivedTablesEnabled(state.derivedTablesEnabled);
       await nextLoader.open();
       loaderRef.current = nextLoader;
+      databaseDownloadFilenameRef.current = DEFAULT_DATABASE_DOWNLOAD_FILENAME;
       setLoader(nextLoader);
 
       dispatch({ type: 'connection-opened' });
@@ -542,6 +551,7 @@ export function useGtfsWorkbench(): {
         const result = await loaderRef.current.importGtfsZip(file, (event) => {
           dispatch({ type: 'apply-import-progress', event });
         });
+        databaseDownloadFilenameRef.current = toDatabaseDownloadFilename(file.name);
 
         const elapsedSeconds = (performance.now() - startedAt) / 1000;
         const elapsedLabel = `${elapsedSeconds.toFixed(2)}s`;
@@ -588,6 +598,7 @@ export function useGtfsWorkbench(): {
     try {
       clearActiveTableQuery();
       await loaderRef.current.clearDatabase();
+      databaseDownloadFilenameRef.current = DEFAULT_DATABASE_DOWNLOAD_FILENAME;
       await refreshTables();
       dispatch({ type: 'reset-rows' });
       dispatch({ type: 'increment-file-input-reset-token' });
@@ -598,6 +609,31 @@ export function useGtfsWorkbench(): {
       dispatch({ type: 'set-busy', busy: false });
     }
   }, [clearActiveTableQuery, refreshTables, setStatusMessage]);
+
+  const downloadDatabase = useCallback(async () => {
+    if (!loaderRef.current) {
+      return;
+    }
+
+    dispatch({ type: 'set-busy', busy: true });
+    try {
+      const bytes = await loaderRef.current.exportDatabase();
+      const blob = new Blob([bytes.slice().buffer], { type: 'application/vnd.sqlite3' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = databaseDownloadFilenameRef.current;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setStatusMessage('SQLiteファイルをダウンロードしました', 'ok');
+    } catch (error) {
+      handleError(error, 'SQLiteファイルのダウンロードに失敗しました', setStatusMessage);
+    } finally {
+      dispatch({ type: 'set-busy', busy: false });
+    }
+  }, [setStatusMessage]);
 
   const getTableColumns = useCallback(async (tableName: string): Promise<string[]> => {
     if (!loaderRef.current || !tableName) return [];
@@ -828,6 +864,7 @@ export function useGtfsWorkbench(): {
       closeDb,
       refreshTables,
       importZip,
+      downloadDatabase,
       clearDb,
       readRows,
       loadRowsRange,
@@ -842,6 +879,7 @@ export function useGtfsWorkbench(): {
       closeDb,
       getTableColumns,
       importZip,
+      downloadDatabase,
       loadRouteMapOptions,
       loadRouteMapData,
       loadRowsRange,

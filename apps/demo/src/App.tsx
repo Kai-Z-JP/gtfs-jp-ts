@@ -55,6 +55,7 @@ export default function App(): JSX.Element {
             onDerivedTablesEnabledChange={actions.setDerivedTablesEnabled}
             onOpen={actions.openDb}
             onImportZip={actions.importZip}
+            onDownloadDatabase={actions.downloadDatabase}
             onRefreshTables={actions.refreshTables}
             onClearDb={actions.clearDb}
             onClose={actions.closeDb}
