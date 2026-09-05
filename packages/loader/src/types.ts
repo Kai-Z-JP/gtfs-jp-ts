@@ -36,6 +36,7 @@ export interface GtfsLoader<TSchema extends GtfsSchemaDefinition = GtfsSchemaDef
   open(): Promise<void>;
   close(options?: CloseOptions): Promise<void>;
   reset(): Promise<void>;
+  exportBytes(): Promise<Uint8Array>;
   listTables(): Promise<string[]>;
   listGtfsTables(): Promise<GtfsJpV4TableName[]>;
   hasTable(tableName: string): Promise<boolean>;
