@@ -8,6 +8,7 @@ import type { Kysely } from 'kysely';
 
 import type { GtfsSchemaDefinition, GtfsSchemaRuntime } from './schema-types.js';
 import type {
+  GtfsDatabaseProvider,
   GtfsLoader,
   GtfsLoaderOptions,
   GtfsValidationResult,
@@ -15,6 +16,10 @@ import type {
   ImportGtfsZipResult,
   SqliteStorageMode,
 } from './types.js';
+import {
+  createProviderSession,
+  createSqliteSessionDatabaseProvider,
+} from './internal/database-provider.js';
 import { getErrorMessage } from './internal/error.js';
 import { importZipViaMemoryStage } from './internal/import/import-memory-stage.js';
 import { importZipIntoSession } from './internal/import/import-pipeline.js';
@@ -23,7 +28,6 @@ import {
   isInternalMaterializationTable,
   runDerivedMaterialization,
 } from './internal/materialization.js';
-import { createSessionDb } from './internal/session-db.js';
 import { SqliteSession } from './internal/session.js';
 import { getOpfsUnavailableReason } from './internal/storage.js';
 import { KyselyDatabaseFromLoader } from './kysely.js';
@@ -34,18 +38,27 @@ class GtfsLoaderImpl<
   #mode: SqliteStorageMode;
   #strictGtfsTableName: boolean;
   #session: SqliteSession;
+  #database: GtfsDatabaseProvider<KyselyDatabaseFromLoader<TSchema>>;
   #compiledSchema = compileGtfsSchema(undefined);
   #runtime: GtfsSchemaRuntime<TSchema>;
-  #db: Kysely<KyselyDatabaseFromLoader<TSchema>> | undefined;
+  #usesCustomDatabase: boolean;
 
   constructor(options: GtfsLoaderOptions<TSchema> = {}) {
     this.#mode = options.storage ?? 'memory';
     this.#strictGtfsTableName = options.strictGtfsTableName ?? true;
-    this.#session = new SqliteSession({
+    this.#usesCustomDatabase = options.database !== undefined;
+
+    const sessionOptions = {
       mode: this.#mode,
       filename: options.filename,
       worker: options.worker,
-    });
+    };
+    this.#session = options.database
+      ? createProviderSession(options.database, sessionOptions)
+      : new SqliteSession(sessionOptions);
+    this.#database =
+      options.database ??
+      createSqliteSessionDatabaseProvider<KyselyDatabaseFromLoader<TSchema>>(this.#session);
     this.#compiledSchema = compileGtfsSchema(options.schema);
     this.#runtime = (options.runtime ?? {}) as GtfsSchemaRuntime<TSchema>;
   }
@@ -55,29 +68,30 @@ class GtfsLoaderImpl<
   }
 
   db(): Kysely<KyselyDatabaseFromLoader<TSchema>> {
-    this.#db ??= createSessionDb<KyselyDatabaseFromLoader<TSchema>>(this.#session);
-    return this.#db;
+    return this.#database.db();
   }
 
   async open(): Promise<void> {
-    if (this.#mode === 'opfs') {
+    if (!this.#usesCustomDatabase && this.#mode === 'opfs') {
       const reason = getOpfsUnavailableReason();
       if (reason) {
         throw new Error(`OPFS mode is unavailable: ${reason}`);
       }
     }
 
-    await this.#session.open();
+    await this.#database.open();
   }
 
   async close(options: { unlink?: boolean } = {}): Promise<void> {
-    this.#db = undefined;
-    await this.#session.close(options);
+    await this.#database.close(options);
   }
 
   async reset(): Promise<void> {
-    await this.close({ unlink: this.#mode === 'opfs' });
-    await this.open();
+    await this.#database.reset();
+  }
+
+  async exportBytes(): Promise<Uint8Array> {
+    return await this.#database.exportBytes();
   }
 
   async listTables(): Promise<string[]> {

@@ -59,6 +59,34 @@ createGtfsLoader({ storage: 'memory' });
 createGtfsLoader({ storage: 'opfs', filename: 'gtfs.sqlite3' });
 ```
 
+## Custom Database Provider
+
+独自の SQLite/Kysely provider を使う場合は `database` を渡せます。
+
+```ts
+import { createGtfsLoader, type GtfsDatabaseProvider } from '@gtfs-jp/loader';
+
+const database: GtfsDatabaseProvider = {
+  async open() {},
+  async close(_options) {},
+  async reset() {},
+  db() {
+    return customKyselyDb;
+  },
+  async exportBytes() {
+    return await exportSqliteBytes();
+  },
+  async importBytes(bytes) {
+    await importSqliteBytes(bytes);
+  },
+};
+
+const loader = createGtfsLoader({
+  database,
+  schema,
+});
+```
+
 OPFS を使用するには、ページに以下のヘッダーが必要です:
 
 ```
@@ -83,6 +111,12 @@ await loader.importZip(file, {
     // event.targetName, event.state, event.rowsWritten ...
   },
 });
+```
+
+SQLiteデータベースはバイト列としてエクスポートできます。
+
+```ts
+const sqliteBytes = await loader.exportBytes();
 ```
 
 既知の GTFS-JP テーブルでは、入力ヘッダに存在しない非必須列もスキーマに基づいて DB 上へ作成されます。これらの列の値は `NULL` として補完されるため、`selectAll()` や introspection で安定した列集合を扱えます。
@@ -186,6 +220,7 @@ JS builder の `context` には以下のメソッドがあります:
 
 | オプション            | 型                     | デフォルト | 説明                                    |
 | --------------------- | ---------------------- | ---------- | --------------------------------------- |
+| `database`            | `GtfsDatabaseProvider` | —          | カスタム DB provider                    |
 | `storage`             | `"memory" \| "opfs"`   | `"memory"` | ストレージモード                        |
 | `filename`            | `string`               | —          | OPFS ファイル名                         |
 | `worker`              | `Worker`               | —          | カスタム Worker インスタンス            |

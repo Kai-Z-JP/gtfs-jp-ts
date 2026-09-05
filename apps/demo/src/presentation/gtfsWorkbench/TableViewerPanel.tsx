@@ -22,17 +22,19 @@ type TableViewerPanelProps = {
   summary: string;
   selectedTable: string;
   tableNames: string[];
-  limit: string;
-  rows: GtfsRow[];
+  rows: ReadonlyArray<GtfsRow | undefined>;
+  loadedRowCount: number;
+  tableQueryId: number | null;
+  activeColumns?: string[];
   busy: boolean;
   isOpen: boolean;
   onSelectedTableChange: (selectedTable: string) => void;
-  onLimitChange: (limit: string) => void;
   onReadRows: (
     columns?: string[],
     whereConditions?: WhereCondition[],
     orderConditions?: OrderCondition[],
   ) => Promise<void>;
+  onLoadRowsRange: (startIndex: number, endIndex: number) => void;
   onGetTableColumns: (tableName: string) => Promise<string[]>;
 };
 
@@ -40,13 +42,15 @@ export function TableViewerPanel({
   summary,
   selectedTable,
   tableNames,
-  limit,
   rows,
+  loadedRowCount,
+  tableQueryId,
+  activeColumns,
   busy,
   isOpen,
   onSelectedTableChange,
-  onLimitChange,
   onReadRows,
+  onLoadRowsRange,
   onGetTableColumns,
 }: TableViewerPanelProps): JSX.Element {
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
@@ -55,12 +59,22 @@ export function TableViewerPanel({
   const [orderConditions, setOrderConditions] = useState<OrderCondition[]>([]);
 
   useEffect(() => {
+    let isStale = false;
+
     void onGetTableColumns(selectedTable).then((cols) => {
+      if (isStale) {
+        return;
+      }
+
       setAvailableColumns(cols);
       setSelectedColumns(new Set(cols));
       setWhereConditions([]);
       setOrderConditions([]);
     });
+
+    return () => {
+      isStale = true;
+    };
   }, [selectedTable, onGetTableColumns]);
 
   const toggleColumn = (col: string) => {
@@ -101,12 +115,14 @@ export function TableViewerPanel({
     setOrderConditions((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const selectedColumnList =
+    availableColumns.length > 0
+      ? availableColumns.filter((c) => selectedColumns.has(c))
+      : undefined;
+  const tableColumns = activeColumns ?? selectedColumnList;
+
   const handleRead = () => {
-    const columns =
-      availableColumns.length > 0
-        ? availableColumns.filter((c) => selectedColumns.has(c))
-        : undefined;
-    void onReadRows(columns, whereConditions, orderConditions);
+    void onReadRows(selectedColumnList, whereConditions, orderConditions);
   };
 
   return (
@@ -119,7 +135,7 @@ export function TableViewerPanel({
         <CardDescription>{summary}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-[1fr_140px_120px]">
+        <div className="grid gap-4 md:grid-cols-[1fr_120px]">
           <div className="space-y-2">
             <Label htmlFor="table">Table</Label>
             <select
@@ -135,19 +151,6 @@ export function TableViewerPanel({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="limit">Limit</Label>
-            <Input
-              id="limit"
-              type="number"
-              min={1}
-              max={5000}
-              value={limit}
-              onChange={(event) => onLimitChange(event.target.value)}
-              disabled={busy || !isOpen}
-            />
           </div>
 
           <div className="flex items-end">
@@ -347,13 +350,20 @@ export function TableViewerPanel({
           </div>
         )}
 
-        <div className="max-h-[560px] overflow-auto rounded-lg border border-black bg-white">
-          {rows.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-neutral-600">0 rows</div>
-          ) : (
-            <DataTable rows={rows} />
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+          <span>
+            {rows.length === 0 ? '0 rows' : `${loadedRowCount} / ${rows.length} rows loaded`}
+          </span>
+          {rows.length > loadedRowCount && <span>スクロールに合わせてバッチ取得します</span>}
         </div>
+
+        <DataTable
+          key={`${selectedTable}:${tableQueryId ?? 'pending'}`}
+          rows={rows}
+          columns={tableColumns}
+          resetKey={tableQueryId}
+          onRowsNeeded={onLoadRowsRange}
+        />
       </CardContent>
     </Card>
   );

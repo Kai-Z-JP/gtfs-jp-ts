@@ -54,6 +54,11 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort<SampleDatabase> {
     await loader.reset();
   }
 
+  async exportDatabase(): Promise<Uint8Array> {
+    const loader = this.requireLoader();
+    return await loader.exportBytes();
+  }
+
   setDerivedTablesEnabled(enabled: boolean): void {
     this.desiredDerivedTablesEnabled = enabled;
   }
@@ -61,6 +66,11 @@ export class GtfsLoaderAdapter implements GtfsLoaderPort<SampleDatabase> {
   async listAllTables(): Promise<string[]> {
     const loader = this.requireLoader();
     return await loader.listTables();
+  }
+
+  async hasTable(tableName: string): Promise<boolean> {
+    const loader = this.requireLoader();
+    return await loader.hasTable(tableName);
   }
 
   async importGtfsZip(

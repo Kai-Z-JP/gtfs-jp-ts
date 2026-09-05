@@ -11,15 +11,18 @@
   },
   "dependencies": {
     "@gtfs-jp/loader": "workspace:*",
+    "@gtfs-jp/query": "workspace:*",
     "@gtfs-jp/types": "workspace:*",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.544.0",
     "kysely": "^0.28.14",
+    "lucide-react": "^0.544.0",
+    "maplibre-gl": "5.23.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-map-gl": "8.1.1",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {

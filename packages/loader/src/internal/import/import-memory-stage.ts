@@ -5,7 +5,6 @@ import type {
 } from '../../types.js';
 import type { DerivedMaterializationResult } from '../materialization.js';
 import { SqliteSession } from '../session.js';
-import { resolveFilename, toOpfsPath, writeBytesToOpfsFile } from '../storage.js';
 import { importZipIntoSession } from './import-pipeline.js';
 
 type ImportViaMemoryStageArgs = {
@@ -42,9 +41,6 @@ export const importZipViaMemoryStage = async ({
   derivedTargetNames,
   afterImport,
 }: ImportViaMemoryStageArgs): Promise<ImportGtfsZipResult> => {
-  const opfsFilename = resolveFilename(session.mode, session.filename);
-  const opfsPath = toOpfsPath(opfsFilename);
-
   emit({
     phase: 'import',
     message: 'OPFS memory-stage: close current DB',
@@ -85,9 +81,9 @@ export const importZipViaMemoryStage = async ({
 
     emit({
       phase: 'import',
-      message: `OPFS memory-stage: write sqlite file (${opfsPath})`,
+      message: 'OPFS memory-stage: import sqlite bytes',
     });
-    await writeBytesToOpfsFile(opfsPath, bytes);
+    await session.importBytes(bytes);
   } catch (error) {
     pendingError = error;
   } finally {

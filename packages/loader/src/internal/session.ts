@@ -1,7 +1,7 @@
-import type { SqlBindMap, SqlBindValue, SqliteStorageMode } from '../types.js';
+import type { CloseOptions, SqlBindMap, SqlBindValue, SqliteStorageMode } from '../types.js';
 import { normalizeBind } from './sql.js';
 import { createPromiser, type SqlitePromiser } from './sqlite-worker.js';
-import { resolveFilename } from './storage.js';
+import { resolveFilename, toOpfsPath, writeBytesToOpfsFile } from './storage.js';
 
 type ExecResult<T> = {
   resultRows?: T[];
@@ -50,7 +50,7 @@ export class SqliteSession {
     this.#dbId = dbId;
   }
 
-  async close(options: { unlink?: boolean } = {}): Promise<void> {
+  async close(options: CloseOptions = {}): Promise<void> {
     if (!this.#promiser || this.#dbId === undefined) {
       return;
     }
@@ -61,6 +61,11 @@ export class SqliteSession {
     });
 
     this.#dbId = undefined;
+  }
+
+  async reset(): Promise<void> {
+    await this.close({ unlink: this.#mode === 'opfs' });
+    await this.open();
   }
 
   async exec(sql: string, bind: SqlBindMap = {}): Promise<void> {
@@ -112,6 +117,26 @@ export class SqliteSession {
     }
 
     throw new Error('Worker export did not return a valid byte array');
+  }
+
+  async importBytes(bytes: Uint8Array): Promise<void> {
+    if (this.#mode !== 'opfs') {
+      throw new Error('SQLite byte import is only supported for OPFS storage.');
+    }
+
+    const shouldReopen = this.#dbId !== undefined;
+    if (shouldReopen) {
+      await this.close();
+    }
+
+    try {
+      const opfsFilename = resolveFilename(this.#mode, this.#filename);
+      await writeBytesToOpfsFile(toOpfsPath(opfsFilename), bytes);
+    } finally {
+      if (shouldReopen) {
+        await this.open();
+      }
+    }
   }
 
   #ensureOpen(): void {
