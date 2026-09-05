@@ -90,6 +90,10 @@ class GtfsLoaderImpl<
     await this.#database.reset();
   }
 
+  async exportBytes(): Promise<Uint8Array> {
+    return await this.#database.exportBytes();
+  }
+
   async listTables(): Promise<string[]> {
     const rows = await this.#session.execRows<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",

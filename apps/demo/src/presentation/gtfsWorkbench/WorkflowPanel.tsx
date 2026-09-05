@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Database, FileArchive, X } from 'lucide-react';
+import { Database, Download, FileArchive, X } from 'lucide-react';
 
 import type { ImportProgressState, OpfsSupport } from '../../domain/gtfsWorkbench';
 import type { SqliteStorageMode } from '@gtfs-jp/loader';
@@ -30,6 +30,7 @@ type WorkflowPanelProps = {
   onDerivedTablesEnabledChange: (enabled: boolean) => void;
   onOpen: () => Promise<void>;
   onImportZip: (file: File | undefined) => Promise<void>;
+  onDownloadDatabase: () => Promise<void>;
   onRefreshTables: () => Promise<void>;
   onClearDb: () => Promise<void>;
   onClose: () => Promise<void>;
@@ -48,6 +49,7 @@ export function WorkflowPanel({
   onDerivedTablesEnabledChange,
   onOpen,
   onImportZip,
+  onDownloadDatabase,
   onRefreshTables,
   onClearDb,
   onClose,
@@ -163,6 +165,15 @@ export function WorkflowPanel({
             <Button variant="outline" disabled={busy || !isOpen} onClick={() => void onClearDb()}>
               <X className="h-4 w-4" />
               Clear DB
+            </Button>
+            <Button
+              className="col-span-2"
+              variant="outline"
+              disabled={busy || !isOpen}
+              onClick={() => void onDownloadDatabase()}
+            >
+              <Download className="h-4 w-4" />
+              Download SQLite
             </Button>
           </div>
 

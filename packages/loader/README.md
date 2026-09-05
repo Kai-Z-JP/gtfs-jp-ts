@@ -113,6 +113,12 @@ await loader.importZip(file, {
 });
 ```
 
+SQLiteデータベースはバイト列としてエクスポートできます。
+
+```ts
+const sqliteBytes = await loader.exportBytes();
+```
+
 既知の GTFS-JP テーブルでは、入力ヘッダに存在しない非必須列もスキーマに基づいて DB 上へ作成されます。これらの列の値は `NULL` として補完されるため、`selectAll()` や introspection で安定した列集合を扱えます。
 
 ## Derived Tables
