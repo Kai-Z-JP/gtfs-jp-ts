@@ -72,8 +72,8 @@ importers:
         specifier: ^3.10.1
         version: 3.10.1
       kysely:
-        specifier: ^0.28.14
-        version: 0.28.14
+        specifier: ^0.28.14 || ^0.29.0 || ^0.30.0-beta.0
+        version: 0.29.6
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@18.3.1)
@@ -127,8 +127,8 @@ importers:
         specifier: ^3.51.2-build6
         version: 3.51.2-build6
       kysely:
-        specifier: ^0.28.14
-        version: 0.28.14
+        specifier: ^0.28.14 || ^0.29.0 || ^0.30.0-beta.0
+        version: 0.29.6
     devDependencies:
       jszip:
         specifier: ^3.10.1
@@ -152,8 +152,8 @@ importers:
         specifier: workspace:*
         version: link:../loader
       kysely:
-        specifier: ^0.28.14
-        version: 0.28.14
+        specifier: ^0.28.14 || ^0.29.0 || ^0.30.0-beta.0
+        version: 0.29.6
 
   packages/types: {}
 
@@ -3451,9 +3451,9 @@ packages:
       json-buffer: 3.0.1
     dev: true
 
-  /kysely@0.28.14:
-    resolution: {integrity: sha512-SU3lgh0rPvq7upc6vvdVrCsSMUG1h3ChvHVOY7wJ2fw4C9QEB7X3d5eyYEyULUX7UQtxZJtZXGuT6U2US72UYA==}
-    engines: {node: '>=20.0.0'}
+  /kysely@0.29.6:
+    resolution: {integrity: sha512-hHaB8C/rfzDDtr/t8YZwxAuPJTT0zHyaPoVzcXwDYhYNAgH/4sIfVhi/XLLIY+bL/FqaIJnjATDbi8ObSELmxg==}
+    engines: {node: '>=22.0.0'}
     dev: false
 
   /levn@0.4.1:
