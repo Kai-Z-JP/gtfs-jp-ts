@@ -1,5 +1,6 @@
 import type { GtfsJpV4TypedRows } from '@gtfs-jp/types';
 import {
+  type CompiledQuery,
   type DatabaseConnection,
   type Driver,
   Kysely,
@@ -26,21 +27,35 @@ const toNamedParams = (
   return { sql: namedSql, bind };
 };
 
+// Same shape as kysely's `AbortableOperationOptions` (0.29+), which is not exported by 0.28.
+type AbortableOperationOptions = {
+  readonly signal?: AbortSignal;
+};
+
 class SessionConnection implements DatabaseConnection {
   constructor(private readonly session: SqliteSession) {}
 
-  async executeQuery<R>(compiledQuery: {
-    sql: string;
-    parameters: readonly unknown[];
-  }): Promise<QueryResult<R>> {
+  async executeQuery<R>(
+    compiledQuery: CompiledQuery,
+    options?: AbortableOperationOptions,
+  ): Promise<QueryResult<R>> {
+    options?.signal?.throwIfAborted();
     const { sql, bind } = toNamedParams(compiledQuery.sql, compiledQuery.parameters);
     const rows = (await this.session.execRows<R>(sql, bind)) as R[];
     return { rows };
   }
 
-  // eslint-disable-next-line require-yield
-  async *streamQuery(): AsyncIterableIterator<never> {
-    throw new Error('Streaming is not supported');
+  // The session returns all rows at once, so rows are fetched first and then yielded in chunks.
+  async *streamQuery<R>(
+    compiledQuery: CompiledQuery,
+    chunkSize = 1,
+    options?: AbortableOperationOptions,
+  ): AsyncIterableIterator<QueryResult<R>> {
+    const { rows } = await this.executeQuery<R>(compiledQuery, options);
+    const size = Math.max(1, Math.floor(chunkSize));
+    for (let index = 0; index < rows.length; index += size) {
+      yield { rows: rows.slice(index, index + size) };
+    }
   }
 }
 
